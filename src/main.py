@@ -30,6 +30,8 @@ def main():
     lr_init = 0.01          # Initial learning rate
     weightDecay = 0.0005    # Amount to decay weights over time
     momentum = 0.9          # Momentum of the SGD optimizer
+    SPPDim = 16             # The height and width dimension to convert FPN 
+                            # (Feature Pyramid Network) encodings to
     
     
     # COCO dataset parameters
@@ -111,9 +113,8 @@ def main():
     
     
     ### Model Training
-    model = Darknet53()
-    a = model.forward(imgs[0])
-    #model = YOLOX(k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum)
+    model = YOLOX(k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim)
+    model.train(imgs, anns)
     
     
     

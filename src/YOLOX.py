@@ -257,7 +257,8 @@ class YOLOX(nn.Module):
         iou11_2 = self.iou11(regConv2)
         iou11_3 = self.iou11(regConv3)
         
-        return 0
+        # Return the data as arrays
+        return [clsConv1,clsConv2,clsConv3], [reg11_1,reg11_2,reg11_3], [iou11_1,iou11_2,iou11_3]
     
     
     # Train the network on training data
@@ -276,11 +277,25 @@ class YOLOX(nn.Module):
             
             # Randomly split the data into batches
             X_batches = torch.split(X[idx], self.batchSize)
-            y_batches = np.array_split(np.array(y, dtype=object)[idx], self.batchSize)
+            y_temp = np.array(y, dtype=object)[idx]
+            y_batches = [y_temp[self.batchSize*i + self.batchSize*(i+1)] for i in range(0, (X.shape[0]//self.batchSize))]
+            y_batches = np.concatenate((y_batches, y_temp[(X.shape[0]//self.batchSize):]))
             
             # Iterate over all batches
             for i in range(0, len(X_batches)):
                 # Get a prediction of the bounding boxes on the input image
-                y_hat = self.forward(X)
+                cls, reg, iou = self.forward(X)
+                
+                ### Class predictions
+                print() # Should I argmax the classes to find which one
+                # it predicted for each pixel in the img?
+                
+                # ALso should HxW go to the actual HxW of the original picture
+                
+                ### Regression predictions
+                print()
+                
+                ### IoU predictions
+                print()
 
         return 0

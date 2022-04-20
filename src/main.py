@@ -30,7 +30,7 @@ def main():
     lr_init = 0.01          # Initial learning rate
     weightDecay = 0.0005    # Amount to decay weights over time
     momentum = 0.9          # Momentum of the SGD optimizer
-    SPPDim = 16             # The height and width dimension to convert FPN 
+    SPPDim = 256            # The height and width dimension to convert FPN 
                             # (Feature Pyramid Network) encodings to
     numCats = 3             # The number of categories to predict from
     
@@ -90,10 +90,19 @@ def main():
     imgs = []
     print("\nLoading images...")
     for img_d in img_data:
+        # Load in the image
         img = io.imread(img_d['coco_url'])
-        img = Image.fromarray(img)
-        img = img.convert("RGB")
-        img = img.resize((resize, resize))
+        
+        # Resize the image
+        img = Image.fromarray(img) # Convert to PIL object
+        img = img.convert("RGB")   # Convert to RGB
+        img.thumbnail((resize, resize), Image.ANTIALIAS) # Resize the image
+        img = np.array(img)
+        
+        # Pad with zeros if needed
+        img = np.pad(img, (((resize-img.shape[0])-(resize-img.shape[0])//2, ((resize-img.shape[0])//2)), ((resize-img.shape[1])-(resize-img.shape[1])//2, ((resize-img.shape[1])//2)), (0, 0)), mode='constant')
+        
+        # Save the array
         imgs.append(np.array(img))
     imgs = torch.tensor(np.array(imgs), dtype=torch.float, requires_grad=False, device=device)
     
@@ -108,11 +117,13 @@ def main():
     for img_d in img_data:
         ann = ann_data[img_d["id"]]
         ann_bbox = []
+        ann_cls = []
         for a in ann:
-            # Save the annotation if it bounds the wanted ID
+            # Save the annotation if it bounds the wanted object
             if a["category_id"] in category_Ids.values():
                 ann_bbox.append(a["bbox"])
-        anns.append(ann_bbox[:k])
+                ann_cls.append(list(category_Ids.values()).index(a["category_id"]))
+        anns.append({"bbox":ann_bbox[:k], "cls":ann_cls})
     
     
     

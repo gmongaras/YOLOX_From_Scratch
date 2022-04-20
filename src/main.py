@@ -32,6 +32,7 @@ def main():
     momentum = 0.9          # Momentum of the SGD optimizer
     SPPDim = 16             # The height and width dimension to convert FPN 
                             # (Feature Pyramid Network) encodings to
+    numCats = 3             # The number of categories to predict from
     
     
     # COCO dataset parameters
@@ -42,6 +43,10 @@ def main():
     numToLoad = 2           # Max Number of data images to load in (use -1 for all)
     resize = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
     
+    
+    # Ensure the number of categories is equal to the list
+    # of categories
+    assert numCats == len(categories), "Number of categories (numCats) must be equal to the length of the categories list (categories)"
     
     
     
@@ -113,7 +118,7 @@ def main():
     
     
     ### Model Training
-    model = YOLOX(k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim)
+    model = YOLOX(k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats)
     model.train(imgs, anns)
     
     

@@ -1,5 +1,4 @@
 import torch
-from pyramidpooling import PyramidPooling
 from torch import nn
 import numpy as np
 
@@ -179,7 +178,8 @@ class YOLOX(nn.Module):
     #   momentum - Momentum of the SGD optimizer
     #   SPPDim - The height and width dimension to convert FPN 
     #            (Feature Pyramid Network) encodings to
-    def __init__(self, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim):
+    #   numCats - The number of categories to predict from
+    def __init__(self, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats):
         super(YOLOX, self).__init__()
         
         # Save the model paramters
@@ -199,11 +199,23 @@ class YOLOX(nn.Module):
         self.conv11_3 = nn.Conv2d(256, 256, kernel_size=1)
         
         # The class convolution
-        self.clsConvs = nn.Sequential(
+        self.clsConv = nn.Sequential(
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.Conv2d(256, 256, kernel_size=1)
+            nn.Conv2d(256, numCats, kernel_size=1)
         )
+        
+        # The regression convolution
+        self.regConv = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.Conv2d(256, 256, kernel_size=3, padding=1)
+        )
+        
+        # The regression 1x1
+        self.reg11 = nn.Conv2d(256, 4, kernel_size=1)
+        
+        # The IoU 1x1
+        self.iou11 = nn.Conv2d(256, 1, kernel_size=1)
         
         # Create the optimizer
         self.optim = torch.optim.SGD(self.parameters(), lr=lr_init, momentum=momentum, weight_decay=weightDecay)
@@ -227,9 +239,23 @@ class YOLOX(nn.Module):
         v3 = self.conv11_3(FPN3)
         
         # Send the inputs through the class convolution
-        clsConv1 = self.clsConvs(v1)
-        clsConv2 = self.clsConvs(v2)
-        clsConv3 = self.clsConvs(v3)
+        clsConv1 = self.clsConv(v1)
+        clsConv2 = self.clsConv(v2)
+        clsConv3 = self.clsConv(v3)
+        
+        # Send the inputs through the regression convolution
+        regConv1 = self.regConv(v1)
+        regConv2 = self.regConv(v2)
+        regConv3 = self.regConv(v3)
+        
+        # Send the regression covolution outputs through the
+        # regression 1x1 and the IoU 1x1
+        reg11_1 = self.reg11(regConv1)
+        reg11_2 = self.reg11(regConv2)
+        reg11_3 = self.reg11(regConv3)
+        iou11_1 = self.iou11(regConv1)
+        iou11_2 = self.iou11(regConv2)
+        iou11_3 = self.iou11(regConv3)
         
         return 0
     

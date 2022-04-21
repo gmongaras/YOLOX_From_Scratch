@@ -76,7 +76,7 @@ class YOLOX(nn.Module):
         self.optimizer = torch.optim.SGD(self.parameters(), lr=lr_init*batchSize/64, momentum=momentum, weight_decay=weightDecay)
     
         # Learning rate scheduler
-        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer)
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=numEpochs)
     
     
     # Get a prediction for the bounding box given some images
@@ -168,7 +168,7 @@ class YOLOX(nn.Module):
                     ### Class predictions
                     
                     # Send the data through the Focal Loss function
-                    FL = torch.sum(self.losses.FocalLoss(cls_p, torch.stack([i["pix_cls"] for i in y_b])))
+                    FL = torch.mean(self.losses.FocalLoss(cls_p, torch.stack([i["pix_cls"] for i in y_b])))
                     cls_p.retain_grad()
                     
                     # Get the argmax of the classes
@@ -178,7 +178,7 @@ class YOLOX(nn.Module):
                     
                     
                     ### Regression predictions
-                    print()
+                    ##
                     
                     # Use GIoU for loss
                     
@@ -186,7 +186,7 @@ class YOLOX(nn.Module):
                     
                     
                     ### IoU predictions
-                    print()
+                    ##
                     
                     # Convert to centered values (In Multipositives section)
                     # Look at FCOS
@@ -216,14 +216,14 @@ class YOLOX(nn.Module):
                     self.scheduler.step()
                 
                 # Zero the gradients
-                self.optimizer.zero_grad() 
+                self.optimizer.zero_grad()
                 
                 print(totalLoss)
         
-        
-        def predict(self):
-            #https://medium.com/swlh/fcos-walkthrough-the-fully-convolutional-approach-to-object-detection-777f614268c
-            # Look in inference mode
-            return 1
-
         return 0
+        
+        
+    def predict(self):
+        #https://medium.com/swlh/fcos-walkthrough-the-fully-convolutional-approach-to-object-detection-777f614268c
+        # Look in inference mode
+        return 1

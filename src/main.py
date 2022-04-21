@@ -34,6 +34,10 @@ def main():
                             # (Feature Pyramid Network) encodings to
     numCats = 3             # The number of categories to predict from
     
+    # Loss Function Hyperparameters
+    FL_alpha = 4            # The focal loss alpha parameter
+    FL_gamma = 2            # The focal loss gamma paramter
+    
     
     # COCO dataset parameters
     dataDir = "../coco"     # The location of the COCO dataset
@@ -122,14 +126,14 @@ def main():
             # Save the annotation if it bounds the wanted object
             if a["category_id"] in category_Ids.values():
                 ann_bbox.append(a["bbox"])
-                ann_cls.append(list(category_Ids.values()).index(a["category_id"]))
+                ann_cls.append(list(category_Ids.values()).index(a["category_id"])+1)
         anns.append({"bbox":ann_bbox[:k], "cls":ann_cls})
     
     
     
     
     ### Model Training
-    model = YOLOX(k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats)
+    model = YOLOX(k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma)
     model.train(imgs, anns)
     
     

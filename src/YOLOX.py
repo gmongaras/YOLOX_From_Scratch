@@ -124,6 +124,7 @@ class YOLOX(nn.Module):
     #   X - The inputs into the network (images to put bounding boxes on)
     #   y - The labels for each input (correct bounding boxes to place on image)
     def train(self, X, y):
+        from matplotlib import pyplot as plt
         # Make sure the input data are tensors
         if type(X) != torch.Tensor:
             X = torch.tensor(X, dtype=torch.float, device=device, requires_grad=False)
@@ -143,6 +144,9 @@ class YOLOX(nn.Module):
                 y_batches += y_temp[self.batchSize*(X.shape[0]//self.batchSize):]
                 if type(y_batches[-1]) == dict:
                     y_batches[-1] = [y_batches[-1]]
+            
+            # The loss over all batches
+            batchLoss = 0
             
             # Iterate over all batches
             for i in range(0, len(X_batches)):
@@ -168,7 +172,7 @@ class YOLOX(nn.Module):
                     ### Class predictions
                     
                     # Send the data through the Focal Loss function
-                    FL = torch.mean(self.losses.FocalLoss(cls_p, torch.stack([i["pix_cls"] for i in y_b])))
+                    FL = cls_p.shape[0]*torch.mean(self.losses.FocalLoss(cls_p, torch.stack([i["pix_cls"] for i in y_b])))
                     cls_p.retain_grad()
                     
                     # Get the argmax of the classes
@@ -204,6 +208,10 @@ class YOLOX(nn.Module):
                 
                 
                 ### Updating the model
+                #plt.imshow(torch.argmax(y_b[0]["pix_cls"], dim=-1).detach().numpy(), interpolation='nearest')
+                #plt.show()
+                #plt.imshow(torch.argmax(cls_p[0], dim=-1).detach().numpy(), interpolation='nearest')
+                #plt.show()
                 
                 # Backpropogate the loss
                 totalLoss.backward()
@@ -218,7 +226,10 @@ class YOLOX(nn.Module):
                 # Zero the gradients
                 self.optimizer.zero_grad()
                 
-                print(totalLoss)
+                # Update the batch loss
+                batchLoss += totalLoss.detach().numpy().item()
+                
+            print(f"Step #{epoch}      Total Batch Loss: {batchLoss}")
         
         return 0
         

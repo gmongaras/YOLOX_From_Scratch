@@ -117,7 +117,6 @@ def main():
         imgs.append(img)
         props.append(prop)
         padding.append(pad)
-    temp = np.copy(imgs)
     imgs = torch.tensor(np.array(imgs), dtype=torch.float32, requires_grad=False, device=device)
     
     # Correction so that channels are first, not last
@@ -189,7 +188,6 @@ def main():
         # One hot encode the pixel classes
         pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int), len(seq_category_Ids.values()))
         
-        #plt.imshow(img.reshape(img.shape[1], img.shape[2], img.shape[0]), interpolation='nearest')
         anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls})
     print("Annotations Loaded!\n")
     

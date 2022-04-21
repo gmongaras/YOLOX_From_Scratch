@@ -57,7 +57,7 @@ class YOLOX(nn.Module):
         self.clsConv = nn.Sequential(
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.Conv2d(256, numCats, kernel_size=1)
+            nn.Conv2d(256, numCats+1, kernel_size=1)
         )
         
         # The regression convolution
@@ -73,7 +73,10 @@ class YOLOX(nn.Module):
         self.iou11 = nn.Conv2d(256, 1, kernel_size=1)
         
         # Create the optimizer
-        self.optim = torch.optim.SGD(self.parameters(), lr=lr_init, momentum=momentum, weight_decay=weightDecay)
+        self.optimizer = torch.optim.SGD(self.parameters(), lr=lr_init*batchSize/64, momentum=momentum, weight_decay=weightDecay)
+    
+        # Learning rate scheduler
+        self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(self.optimizer)
     
     
     # Get a prediction for the bounding box given some images
@@ -150,26 +153,23 @@ class YOLOX(nn.Module):
                 # Get a prediction of the bounding boxes on the input image
                 cls, reg, iou = self.forward(X_b)
                 
+                # Cumulate the loss across the three predictions
+                totalLoss = 0
                 
                 # Iterate over the three sets of predictions
                 for p in range(0, 3):
                     # Get the current set of predictions
-                    cls_p = cls[p].transpose(-3, -1)
-                    reg_p = reg[p].transpose(-3, -1)
-                    iou_p = iou[p].transpose(-3, -1)
+                    cls_p = cls[p].permute(0, 2, 3, 1)
+                    reg_p = reg[p].permute(0, 2, 3, 1)
+                    iou_p = iou[p].permute(0, 2, 3, 1)
                     
                     
                     
                     ### Class predictions
                     
-                    # Get the classes of each pixel
-                    cls_l = []
-                    for l in y_b:
-                        TL = 0
-                    
-                    # One hot encode the pixels
-                    
                     # Send the data through the Focal Loss function
+                    FL = torch.sum(self.losses.FocalLoss(cls_p, torch.stack([i["pix_cls"] for i in y_b])))
+                    cls_p.retain_grad()
                     
                     # Get the argmax of the classes
                     argmax = torch.argmax(cls_p, dim=-1)
@@ -198,9 +198,27 @@ class YOLOX(nn.Module):
                     
                     
                     
-                    ### Updating the model
-                    
-                    #finalLoss = clsLoss + regLoss + iouLoss
+                    # Get the final loss for this prediction
+                    finalLoss = FL# + regLoss + iouLoss
+                    totalLoss += finalLoss
+                
+                
+                ### Updating the model
+                
+                # Backpropogate the loss
+                totalLoss.backward()
+                
+                # Step the optimizer
+                self.optimizer.step()
+                
+                # Step the learning rate optimizer after the warmup steps
+                if epoch > self.warmupEpochs:
+                    self.scheduler.step()
+                
+                # Zero the gradients
+                self.optimizer.zero_grad() 
+                
+                print(totalLoss)
         
         
         def predict(self):

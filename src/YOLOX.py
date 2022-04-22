@@ -8,7 +8,7 @@ import numpy as np
 
 device = torch.device('cpu')
 if torch.cuda.is_available():
-    device = torch.device('cuda')
+   device = torch.device('cuda')
 
 
 
@@ -49,28 +49,28 @@ class YOLOX(nn.Module):
         
         # Use 1x1 convolutions so that each value will have
         # the exact same dimensions
-        self.conv11_1 = nn.Conv2d(1024, 256, kernel_size=1)
-        self.conv11_2 = nn.Conv2d(512, 256, kernel_size=1)
-        self.conv11_3 = nn.Conv2d(256, 256, kernel_size=1)
+        self.conv11_1 = nn.Conv2d(1024, 256, kernel_size=1, device=device)
+        self.conv11_2 = nn.Conv2d(512, 256, kernel_size=1, device=device)
+        self.conv11_3 = nn.Conv2d(256, 256, kernel_size=1, device=device)
         
         # The class convolution
         self.clsConv = nn.Sequential(
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
             nn.Conv2d(256, numCats+1, kernel_size=1)
-        )
+        ).to(device)
         
         # The regression convolution
         self.regConv = nn.Sequential(
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
             nn.Conv2d(256, 256, kernel_size=3, padding=1)
-        )
+        ).to(device)
         
         # The regression 1x1
-        self.reg11 = nn.Conv2d(256, 4, kernel_size=1)
+        self.reg11 = nn.Conv2d(256, 4, kernel_size=1, device=device)
         
         # The IoU 1x1
-        self.iou11 = nn.Conv2d(256, 1, kernel_size=1)
+        self.iou11 = nn.Conv2d(256, 1, kernel_size=1, device=device)
         
         # Create the optimizer
         self.optimizer = torch.optim.SGD(self.parameters(), lr=lr_init*batchSize/64, momentum=momentum, weight_decay=weightDecay)
@@ -132,11 +132,11 @@ class YOLOX(nn.Module):
         # Update the models `numEpochs` number of times
         for epoch in range(0, self.numEpochs):
             # Get a randomized set of indices
-            idx = torch.randperm(X.shape[0])
+            idx = torch.randperm(X.shape[0], device=device)
             
             # Randomly split the data into batches
             X_batches = torch.split(X[idx], self.batchSize)
-            y_temp = np.array(y, dtype=object)[idx].tolist()
+            y_temp = np.array(y, dtype=object)[idx.cpu().detach().numpy()].tolist()
             y_batches = [y_temp[self.batchSize*i:self.batchSize*(i+1)] for i in range(0, (X.shape[0]//self.batchSize))]
             if y_batches == []:
                 y_batches = [y]
@@ -172,7 +172,7 @@ class YOLOX(nn.Module):
                     ### Class predictions
                     
                     # Send the data through the Focal Loss function
-                    FL = cls_p.shape[0]*torch.mean(self.losses.FocalLoss(cls_p, torch.stack([i["pix_cls"] for i in y_b])))
+                    FL = cls_p.shape[0]*torch.mean(self.losses.FocalLoss(cls_p, torch.stack([i["pix_cls"] for i in y_b]).to(device)))
                     cls_p.retain_grad()
                     
                     # Get the argmax of the classes
@@ -208,9 +208,12 @@ class YOLOX(nn.Module):
                 
                 
                 ### Updating the model
-                #plt.imshow(torch.argmax(y_b[0]["pix_cls"], dim=-1).detach().numpy(), interpolation='nearest')
+                #if epoch%5 == 0:
+                #    plt.imshow(torch.argmax(cls_p[0], dim=-1).cpu().detach().numpy(), interpolation='nearest')
+                #    plt.show()
+                #plt.imshow(torch.argmax(y_b[0]["pix_cls"], dim=-1).cpu().detach().numpy(), interpolation='nearest')
                 #plt.show()
-                #plt.imshow(torch.argmax(cls_p[0], dim=-1).detach().numpy(), interpolation='nearest')
+                #plt.imshow(torch.argmax(cls_p[0], dim=-1).cpu().detach().numpy(), interpolation='nearest')
                 #plt.show()
                 
                 # Backpropogate the loss
@@ -227,7 +230,7 @@ class YOLOX(nn.Module):
                 self.optimizer.zero_grad()
                 
                 # Update the batch loss
-                batchLoss += totalLoss.detach().numpy().item()
+                batchLoss += totalLoss.cpu().detach().numpy().item()
                 
             print(f"Step #{epoch}      Total Batch Loss: {batchLoss}")
         

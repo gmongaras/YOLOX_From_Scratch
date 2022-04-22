@@ -51,10 +51,10 @@ class Darknet53(nn.Module):
             nn.Conv2d(512, 1024, kernel_size=3, padding=1),
         ).to(device) for i in range(0, 4)]
         self.globalPool = nn.AdaptiveAvgPool2d(1)
-        self.connected = nn.Linear(1024, 1000)
+        self.connected = nn.Linear(1024, 1000, device=device)
         
         ### Output/prediction blocks
-        self.conv11_1 = nn.Conv2d(1024, 512, 1)
+        self.conv11_1 = nn.Conv2d(1024, 512, 1, device=device)
         self.upsample_1 = nn.Upsample(scale_factor=2)
         self.conv_1 = nn.Sequential(
             nn.Conv2d(1024, 512, kernel_size=1),
@@ -64,7 +64,7 @@ class Darknet53(nn.Module):
             nn.Conv2d(512, 512, kernel_size=1),
         ).to(device=device)
         
-        self.conv11_2 = nn.Conv2d(512, 256, 1)
+        self.conv11_2 = nn.Conv2d(512, 256, 1, device=device)
         self.upsample_2 = nn.Upsample(scale_factor=2)
         self.conv_2 = nn.Sequential(
             nn.Conv2d(512, 256, kernel_size=1),
@@ -117,7 +117,6 @@ class Darknet53(nn.Module):
         for i in range(0, 4):
             res = torch.clone(v)
             v = self.block10[i](v)+res
-        del res
         
         ck3 = torch.clone(v)
         

@@ -27,9 +27,15 @@ class LossFunctions():
         # Convert the inputs into a p matrix as the formula suggests
         p = nn.Sigmoid()(z)
         
+        # Get the p_t value using the labels
+        p_t = torch.where(y==1, p,  1-p)
+        
         # Ensure no Nan values
-        p = torch.where(p < 0.000001, p+0.000001, p)
-        p = torch.where(p > 0.999999, p-0.000001, p)
+        p_t = torch.where(p_t < 0.000001, p_t+0.000001, p_t)
+        p_t = torch.where(p_t > 0.999999, p_t-0.000001, p_t)
+        
+        # Return the loss value
+        return -self.FL_alpha*((1-p_t)**self.FL_gamma)*torch.log(p_t)
         
         # Compute the loss and return it
         return -((y+1)/2)*self.FL_alpha*((1-p)**self.FL_gamma)*torch.log(p) - \

@@ -130,7 +130,7 @@ class YOLOX(nn.Module):
             X = torch.tensor(X, dtype=torch.float, device=device, requires_grad=False)
         
         # Update the models `numEpochs` number of times
-        for epoch in range(0, self.numEpochs):
+        for epoch in range(1, self.numEpochs+1):
             # Get a randomized set of indices
             idx = torch.randperm(X.shape[0], device=device)
             
@@ -173,7 +173,6 @@ class YOLOX(nn.Module):
                     
                     # Send the data through the Focal Loss function
                     FL = cls_p.shape[0]*torch.mean(self.losses.FocalLoss(cls_p, torch.stack([i["pix_cls"] for i in y_b]).to(device)))
-                    cls_p.retain_grad()
                     
                     # Get the argmax of the classes
                     argmax = torch.argmax(cls_p, dim=-1)

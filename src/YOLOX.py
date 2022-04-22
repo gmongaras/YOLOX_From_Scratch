@@ -6,12 +6,7 @@ from torch import nn
 import numpy as np
 
 
-device = torch.device('cpu')
-if torch.cuda.is_available():
-   device = torch.device('cuda')
-
-
-
+cpu = torch.device('cpu')
 
 
 
@@ -19,6 +14,7 @@ if torch.cuda.is_available():
 class YOLOX(nn.Module):
     # Initialze the model
     # Inputs:
+    #   device - Device to put the network on
     #   k - The number of possible bounding boxes
     #   numEpochs - The number of epochs to train the model for
     #   batchSize - The size of each minibatch
@@ -31,7 +27,7 @@ class YOLOX(nn.Module):
     #   numCats - The number of categories to predict from
     #   FL_alpha - The focal loss alpha parameter
     #   FL_gamma - The focal loss gamma parameter
-    def __init__(self, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma):
+    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma):
         super(YOLOX, self).__init__()
         
         # Save the model paramters
@@ -40,6 +36,7 @@ class YOLOX(nn.Module):
         self.batchSize = batchSize
         self.warmupEpochs = warmupEpochs
         self.lr_init = lr_init
+        self.device=device
         
         # The darknet backbone
         self.darknet = Darknet53(device, SPPDim)
@@ -85,7 +82,7 @@ class YOLOX(nn.Module):
     def forward(self, X):
         # Make sure the input data are tensors
         if type(X) != torch.Tensor:
-            X = torch.tensor(X, dtype=torch.float, device=device, requires_grad=False)
+            X = torch.tensor(X, dtype=torch.float, device=cpu, requires_grad=False)
         
         # Send the inputs through the Darknet backbone
         FPN1, FPN2, FPN3 = self.darknet(X)
@@ -127,12 +124,12 @@ class YOLOX(nn.Module):
         from matplotlib import pyplot as plt
         # Make sure the input data are tensors
         if type(X) != torch.Tensor:
-            X = torch.tensor(X, dtype=torch.float, device=device, requires_grad=False)
+            X = torch.tensor(X, dtype=torch.float, device=cpu, requires_grad=False)
         
         # Update the models `numEpochs` number of times
         for epoch in range(1, self.numEpochs+1):
             # Get a randomized set of indices
-            idx = torch.randperm(X.shape[0], device=device)
+            idx = torch.randperm(X.shape[0], device=cpu)
             
             # Randomly split the data into batches
             X_batches = torch.split(X[idx], self.batchSize)
@@ -150,9 +147,9 @@ class YOLOX(nn.Module):
             
             # Iterate over all batches
             for i in range(0, len(X_batches)):
-                # The batch data
-                X_b = X_batches[i]
-                y_b = y_batches[i]
+                # Load the batch data onto the gpu if available
+                X_b = X_batches[i].to(self.device)
+                y_b = y_batches[i].to(self.device)
                 
                 # Get a prediction of the bounding boxes on the input image
                 cls, reg, iou = self.forward(X_b)
@@ -172,10 +169,7 @@ class YOLOX(nn.Module):
                     ### Class predictions
                     
                     # Send the data through the Focal Loss function
-                    FL = cls_p.shape[0]*torch.mean(self.losses.FocalLoss(cls_p, torch.stack([i["pix_cls"] for i in y_b]).to(device)))
-                    
-                    # Get the argmax of the classes
-                    argmax = torch.argmax(cls_p, dim=-1)
+                    FL = torch.mean((1/cls_p.shape[0])*torch.sum(self.losses.FocalLoss(cls_p, torch.stack([i["pix_cls"] for i in y_b]).to(self.device)), dim=-1))
                     
                     
                     
@@ -188,8 +182,9 @@ class YOLOX(nn.Module):
                     
                     
                     
-                    ### IoU predictions
-                    ##
+                    ### IoU (object) predictions
+                    
+                    #iouLoss = 
                     
                     # Convert to centered values (In Multipositives section)
                     # Look at FCOS
@@ -207,9 +202,9 @@ class YOLOX(nn.Module):
                 
                 
                 ### Updating the model
-                #if epoch%5 == 0:
-                #    plt.imshow(torch.argmax(cls_p[0], dim=-1).cpu().detach().numpy(), interpolation='nearest')
-                #    plt.show()
+                if epoch%5 == 0:
+                    plt.imshow(torch.argmax(cls_p[0], dim=-1).cpu().detach().numpy(), interpolation='nearest')
+                    plt.show()
                 #plt.imshow(torch.argmax(y_b[0]["pix_cls"], dim=-1).cpu().detach().numpy(), interpolation='nearest')
                 #plt.show()
                 #plt.imshow(torch.argmax(cls_p[0], dim=-1).cpu().detach().numpy(), interpolation='nearest')

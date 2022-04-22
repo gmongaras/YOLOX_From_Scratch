@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 device = torch.device('cpu')
 if torch.cuda.is_available():
    device = torch.device('cuda')
+cpu = torch.device('cpu')
 
 
 
@@ -117,7 +118,7 @@ def main():
         imgs.append(img)
         props.append(prop)
         padding.append(pad)
-    imgs = torch.tensor(np.array(imgs), dtype=torch.float32, requires_grad=False, device=device)
+    imgs = torch.tensor(np.array(imgs), dtype=torch.float32, requires_grad=False, device=cpu)
     
     # Correction so that channels are first, not last
     if imgs.shape[-1] == 3:
@@ -149,6 +150,10 @@ def main():
         # The class for each pixel in the image
         pix_cls = np.zeros((img.shape[1], img.shape[2]))
         
+        # The object probability for each pixel in the image
+        # (1 if object in pixel, 0 otherwise)
+        pix_obj = np.zeros((img.shape[1], img.shape[2]))
+        
         # Iterate over every annotation and save it into a better form
         for a in ann:
             # Save the annotation if it bounds the wanted object
@@ -179,16 +184,19 @@ def main():
                 bbox[2] = math.ceil(bbox[2])
                 bbox[3] = math.ceil(bbox[3])
                 
-                # Add the class to each pixel the bounding
-                # box captures
+                # Add the class and the object probability
+                # to each pixel the bounding box captures
+                # Note: probability is 1 if an object is in the
+                #       part of the image and 0 otherwise
                 for w in range(bbox[0], bbox[0]+bbox[2]):
                     for h in range(bbox[1], bbox[1]+bbox[3]):
                         pix_cls[:][h][w] = cls
+                        pix_obj[:][h][w] = 1
         
         # One hot encode the pixel classes
-        pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int), len(seq_category_Ids.values()))
+        pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int, device=cpu), len(seq_category_Ids.values()))
         
-        anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls})
+        anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls, "pix_obj":pix_obj})
     print("Annotations Loaded!\n")
     
     
@@ -196,7 +204,7 @@ def main():
     
     ### Model Training
     torch.autograd.set_detect_anomaly(True)
-    model = YOLOX(k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma)
+    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma)
     model.train(imgs, anns)
     
     
@@ -204,6 +212,15 @@ def main():
     
     #### Model Testing
     print()
+    
+    
+    
+    ### Model Saving
+    
+    # Save model in pkl file
+    
+    # Save model parameters (like the layers sizes and such) to load
+    # in for inferring
 
 
 

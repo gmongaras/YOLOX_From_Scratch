@@ -218,6 +218,12 @@ def main():
     #### Model Testing
     print()
     
+    # To get output, use torchvision.ops.nms
+    
+    # Make inferences using
+    # with torch.no_grad():
+    #    make_inference()
+    
     
     
     ### Model Saving

@@ -174,8 +174,15 @@ class YOLOX(nn.Module):
                     
                     ### Class predictions
                     
+                    # Get the image class ground truth values
+                    y_b_cls = torch.stack([i["pix_cls"] for i in y_b]).to(cpu)
+                    
+                    # Resize the ground truth value to be the same shape as the
+                    # predicted values
+                    y_b_cls = torch.nn.functional.interpolate(y_b_cls.float().permute(0, 3, 1, 2), cls_p.shape[1]).permute(0, 2, 3, 1)
+                    
                     # Send the data through the Focal Loss function
-                    FL = self.losses.FocalLoss(cls_p.to(cpu), torch.stack([i["pix_cls"] for i in y_b]).to(cpu))
+                    FL = self.losses.FocalLoss(cls_p.to(cpu), y_b_cls)
                     
                     
                     
@@ -190,7 +197,7 @@ class YOLOX(nn.Module):
                     
                     ### IoU (object) predictions
                     
-                    iouLoss = self.losses.BinaryCrossEntropy(iou_p.to(cpu), torch.stack([i["pix_obj"] for i in y_b]).to(cpu))
+                    #iouLoss = self.losses.BinaryCrossEntropy(iou_p.to(cpu), torch.stack([i["pix_obj"] for i in y_b]).to(cpu))
                     
                     # Convert to centered values (In Multipositives section)
                     # Look at FCOS
@@ -204,7 +211,7 @@ class YOLOX(nn.Module):
                     
                     # Get the final loss for this prediction
                     #finalLoss = FL# + regLoss + iouLoss
-                    finalLoss = FL + iouLoss
+                    finalLoss = FL
                     totalLoss += finalLoss
                 
                 

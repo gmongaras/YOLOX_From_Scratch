@@ -2,8 +2,6 @@ import torch
 from torch import nn
 
 
-
-
 class Darknet53(nn.Module):
     # Initialize the mode
     # Inputs:
@@ -74,8 +72,6 @@ class Darknet53(nn.Module):
             nn.Conv2d(256, 256, kernel_size=1),
         ).to(device=device)
         
-        self.SPP = torch.nn.AdaptiveMaxPool2d(SPPDim)
-        
     
     # Get a prediction from the model
     # Inputs:
@@ -143,11 +139,5 @@ class Darknet53(nn.Module):
         v = torch.cat((v, ck1), dim=1)
         v = self.conv_2(v)
         p3 = v
-        
-        # Apply Spatial Pyramid Pooling (SPP) to each prediction
-        # so that the height and width are all equal
-        p1 = self.SPP(p1)
-        p2 = self.SPP(p2)
-        p3 = self.SPP(p3)
         
         return p1,p2,p3

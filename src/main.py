@@ -7,6 +7,7 @@ import random
 import torch
 import math
 from matplotlib import pyplot as plt
+import os
 
 
 
@@ -98,7 +99,8 @@ def main():
     print("\nLoading images...")
     for img_d in img_data:
         # Load in the image
-        img = io.imread(img_d['coco_url'])
+        img = io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_d["file_name"])
+        #img = io.imread(img_d['coco_url'])
         
         # Resize the image
         img = Image.fromarray(img) # Convert to PIL object
@@ -195,6 +197,9 @@ def main():
         
         # One hot encode the pixel classes
         pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int, device=cpu), len(seq_category_Ids.values()))
+        
+        # Encode the objectiveness to a tensor
+        pix_obj = torch.tensor(pix_obj, dtype=int, device=cpu)
         
         anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls, "pix_obj":pix_obj})
     print("Annotations Loaded!\n")

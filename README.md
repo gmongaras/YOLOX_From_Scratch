@@ -24,4 +24,4 @@ yolov3 - https://arxiv.org/abs/1804.02767v1
 
 OTA - https://arxiv.org/abs/2103.14259
 
-focal loss - https://maxhalford.github.io/blog/lightgbm-focal-loss/#first-order-derivative
+focal loss - https://towardsdatascience.com/multi-class-classification-using-focal-loss-and-lightgbm-a6a6dec28872

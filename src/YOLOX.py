@@ -112,6 +112,12 @@ class YOLOX(nn.Module):
         iou11_2 = self.iou11(regConv2)
         iou11_3 = self.iou11(regConv3)
         
+        # Send the IoU through a sigmoid function to get a value
+        # between 0 and 1.
+        iou11_1 = torch.sigmoid(iou11_1)
+        iou11_2 = torch.sigmoid(iou11_2)
+        iou11_3 = torch.sigmoid(iou11_3)
+        
         # Return the data as arrays
         return [clsConv1,clsConv2,clsConv3], [reg11_1,reg11_2,reg11_3], [iou11_1,iou11_2,iou11_3]
     
@@ -169,7 +175,7 @@ class YOLOX(nn.Module):
                     ### Class predictions
                     
                     # Send the data through the Focal Loss function
-                    FL = torch.mean((1/cls_p.shape[0])*torch.sum(self.losses.FocalLoss(cls_p.to(cpu), torch.stack([i["pix_cls"] for i in y_b]).to(cpu)), dim=-1))
+                    FL = self.losses.FocalLoss(cls_p.to(cpu), torch.stack([i["pix_cls"] for i in y_b]).to(cpu))
                     
                     
                     
@@ -184,7 +190,7 @@ class YOLOX(nn.Module):
                     
                     ### IoU (object) predictions
                     
-                    #iouLoss = 
+                    iouLoss = self.losses.BinaryCrossEntropy(iou_p.to(cpu), torch.stack([i["pix_obj"] for i in y_b]).to(cpu))
                     
                     # Convert to centered values (In Multipositives section)
                     # Look at FCOS
@@ -197,18 +203,18 @@ class YOLOX(nn.Module):
                     
                     
                     # Get the final loss for this prediction
-                    finalLoss = FL# + regLoss + iouLoss
+                    #finalLoss = FL# + regLoss + iouLoss
+                    finalLoss = FL + iouLoss
                     totalLoss += finalLoss
                 
                 
                 ### Updating the model
-                if epoch%5 == 0:
-                    plt.imshow(torch.argmax(cls_p[0], dim=-1).cpu().detach().numpy(), interpolation='nearest')
-                    plt.show()
-                #plt.imshow(torch.argmax(y_b[0]["pix_cls"], dim=-1).cpu().detach().numpy(), interpolation='nearest')
-                #plt.show()
-                #plt.imshow(torch.argmax(cls_p[0], dim=-1).cpu().detach().numpy(), interpolation='nearest')
-                #plt.show()
+                #if epoch%5 == 0:
+                #    plt.imshow(torch.argmax(cls_p[0], dim=-1).cpu().detach().numpy(), interpolation='nearest')
+                #    plt.show()
+                #if epoch%5 == 0:
+                #    plt.imshow(iou_p[0].cpu().detach().numpy(), interpolation='nearest')
+                #    plt.show()
                 
                 # Backpropogate the loss
                 totalLoss.backward()

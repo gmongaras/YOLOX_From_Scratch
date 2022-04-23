@@ -27,7 +27,8 @@ class YOLOX(nn.Module):
     #   numCats - The number of categories to predict from
     #   FL_alpha - The focal loss alpha parameter
     #   FL_gamma - The focal loss gamma parameter
-    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma):
+    #   reg_consts - The regression constraints (should be 4 values)
+    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts):
         super(YOLOX, self).__init__()
         
         # Save the model paramters
@@ -36,7 +37,10 @@ class YOLOX(nn.Module):
         self.batchSize = batchSize
         self.warmupEpochs = warmupEpochs
         self.lr_init = lr_init
-        self.device=device
+        self.device = device
+        assert len(reg_consts) == 4, "The regression constrainsts should contain 4 values"
+        self.reg_consts = reg_consts
+        self.numCats = numCats
         
         # The darknet backbone
         self.darknet = Darknet53(device, SPPDim)
@@ -118,6 +122,12 @@ class YOLOX(nn.Module):
         iou11_2 = torch.sigmoid(iou11_2)
         iou11_3 = torch.sigmoid(iou11_3)
         
+        # Send the reg through a ReLU function to get a value
+        # above 0
+        reg11_1 = torch.relu(reg11_1)
+        reg11_2 = torch.relu(reg11_2)
+        reg11_3 = torch.relu(reg11_3)
+        
         # Return the data as arrays
         return [clsConv1,clsConv2,clsConv3], [reg11_1,reg11_2,reg11_3], [iou11_1,iou11_2,iou11_3]
     
@@ -165,30 +175,61 @@ class YOLOX(nn.Module):
                 
                 # Iterate over the three sets of predictions
                 for p in range(0, 3):
-                    # Get the current set of predictions
+                    # Get the current set of predictions in a flattened state
                     cls_p = cls[p].permute(0, 2, 3, 1)
+                    cls_p = cls_p.reshape(cls_p.shape[0], cls_p.shape[1]*cls_p.shape[2], cls_p.shape[3])
                     reg_p = reg[p].permute(0, 2, 3, 1)
+                    reg_p = reg_p.reshape(reg_p.shape[0], reg_p.shape[1]*reg_p.shape[2], reg_p.shape[3])
                     iou_p = iou[p].permute(0, 2, 3, 1)
+                    
+                    
+                    # The regression constraints for this level
+                    reg_const_low = self.reg_consts[p]
+                    reg_const_high = self.reg_consts[p+1]
+                    
+                    # Create a matrix of positive/negative targets. A positive target
+                    # is one which is within a certain threshold. So, the width and
+                    # height should be within a predefined threshold.
+                    reg_labels = torch.where(torch.logical_and(torch.max(reg_p[:,:,2:], dim=-1)[0] < reg_const_high, torch.min(reg_p[:,:,2:], dim=-1)[0] > reg_const_low), 1, 0)
+                    
                     
                     
                     
                     ### Class predictions
                     
+                    # Get the ground truth value for each prediction as a one-hot vector
+                    GT = torch.zeros(list(cls_p.shape[:-1])+[self.numCats+1])
+                    for b_num in range(0, cls_p.shape[0]): # Iterate over all batch elements
+                        for p_num in range(cls_p[b_num].shape[0]): # Iterate over all predictions
+                            # Label as background if not a positive pred
+                            if reg_labels[b_num, p_num] == 0:
+                                GT[b_num, p_num, 0] = 1
+                                continue
+                            
+                            # Store the GT value as a 1 in the one-hot vector
+                            GT[b_num, p_num][y_b[b_num]['pix_cls'][torch.div(reg_p[b_num, p_num, 2].int(), 2, rounding_mode="trunc"), torch.div(reg_p[b_num, p_num, 2].int(), 2, rounding_mode="trunc")]] = 1
+                    
                     # Get the image class ground truth values
-                    y_b_cls = torch.stack([i["pix_cls"] for i in y_b]).to(cpu)
+                    #y_b_cls = torch.stack([i["pix_cls"] for i in y_b]).to(cpu)
                     
                     # Resize the ground truth value to be the same shape as the
                     # predicted values
-                    y_b_cls = torch.nn.functional.interpolate(y_b_cls.float().permute(0, 3, 1, 2), cls_p.shape[1]).permute(0, 2, 3, 1)
+                    #y_b_cls = torch.nn.functional.interpolate(y_b_cls.reshape(y_b_cls.shape[0], 1, y_b_cls.shape[1], y_b_cls.shape[2]).float(), cls_p.shape[1]).int().squeeze()
+                    
+                    # One hot encode the ground truth values
+                    #y_b_cls = torch.nn.functional.one_hot(torch.tensor(y_b_cls, dtype=int, device=cpu), self.numCats+1)
                     
                     # Send the data through the Focal Loss function
-                    FL = self.losses.FocalLoss(cls_p.to(cpu), y_b_cls)
+                    FL = self.losses.FocalLoss(cls_p.to(cpu), GT)
                     
                     
                     
                     
                     ### Regression predictions
-                    ##
+                    
+                    # Get the centerness of all bounding box predictions
+                    # Notes: Centerness defined in the FCOS paper
+                    #reg_cent = 1
                     
                     # Use GIoU for loss
                     

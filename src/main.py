@@ -35,6 +35,9 @@ def main():
     SPPDim = 256            # The height and width dimension to convert FPN 
                             # (Feature Pyramid Network) encodings to
     numCats = 3             # The number of categories to predict from
+    reg_consts = (          # The contraints on the regression size
+        0, 64, 128, 256     # Basically constraints on how large the bounding
+        )                   # boxes can be for each level in the network
     
     # Loss Function Hyperparameters
     FL_alpha = 4            # The focal loss alpha parameter
@@ -131,7 +134,7 @@ def main():
     # Save the category ids as sequential numbers instead of
     # the default number given to that category
     seq_category_Ids = {i:category_Ids[i] for i in category_Ids.keys()}
-    seq_category_Ids["None"] = 0
+    seq_category_Ids["Background"] = 0
     seq_category_Ids_rev = {seq_category_Ids[i]:i for i in seq_category_Ids.keys()}
     
     
@@ -195,10 +198,13 @@ def main():
                         pix_cls[:][h][w] = cls
                         pix_obj[:][h][w] = 1
         
-        # One hot encode the pixel classes
-        pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int, device=cpu), len(seq_category_Ids.values()))
+        # Encode the classes as a tensor
+        pix_cls = torch.tensor(pix_cls, dtype=int, device=cpu)
         
-        # Encode the objectiveness to a tensor
+        # One hot encode the pixel classes
+        #pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int, device=cpu), len(seq_category_Ids.values()))
+        
+        # Encode the objectiveness as a tensor
         pix_obj = torch.tensor(pix_obj, dtype=int, device=cpu)
         
         anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls, "pix_obj":pix_obj})
@@ -209,7 +215,7 @@ def main():
     
     ### Model Training
     torch.autograd.set_detect_anomaly(True)
-    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma)
+    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts)
     model.train(imgs, anns)
     
     

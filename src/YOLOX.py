@@ -162,10 +162,10 @@ class YOLOX(nn.Module):
             batchLoss = 0
             
             # Iterate over all batches
-            for i in range(0, len(X_batches)):
+            for batch in range(0, len(X_batches)):
                 # Load the batch data onto the gpu if available
-                X_b = X_batches[i].to(self.device)
-                y_b = y_batches[i]
+                X_b = X_batches[batch].to(self.device)
+                y_b = y_batches[batch]
                 
                 # Get a prediction of the bounding boxes on the input image
                 cls, reg, iou = self.forward(X_b)
@@ -181,7 +181,13 @@ class YOLOX(nn.Module):
                     reg_p = reg[p].permute(0, 2, 3, 1)
                     reg_p = reg_p.reshape(reg_p.shape[0], reg_p.shape[1]*reg_p.shape[2], reg_p.shape[3])
                     iou_p = iou[p].permute(0, 2, 3, 1)
+                    iou_p = iou_p.reshape(iou_p.shape[0], iou_p.shape[1]*iou_p.shape[2], iou_p.shape[3])
                     
+                    
+                    ### Positive Filtering
+                    
+                    # First we nee dto filter the predictions so that the
+                    # good predictions are kept
                     
                     # The regression constraints for this level
                     reg_const_low = self.reg_consts[p]
@@ -191,6 +197,36 @@ class YOLOX(nn.Module):
                     # is one which is within a certain threshold. So, the width and
                     # height should be within a predefined threshold.
                     reg_labels = torch.where(torch.logical_and(torch.max(reg_p[:,:,2:], dim=-1)[0] < reg_const_high, torch.min(reg_p[:,:,2:], dim=-1)[0] > reg_const_low), 1, 0)
+                    
+                    
+                    ### IoU calculation
+                    
+                    # Each prediction finds the boundary box with the best IoU
+                    # which we will save to be used in the other functions.
+                    
+                    # Iterate over all batch elements
+                    for b_num in range(0, iou_p.shape[0]):
+                        # The total GIoU loss
+                        GIoU_loss = 0
+                        
+                        # Iterate over all bounding box predictions
+                        for p_num in range(0, reg_p[b_num].shape[0]):
+                            # Get the best bounding box ground truth to the
+                            # prediction and the GIoU of that bounding box
+                            GIoULosses = self.losses.GIoU(reg_p[b_num], torch.tensor(y_b[b_num]['bbox'], dtype=float, requires_grad=False)).T
+                            
+                            # Get the indices and values for the best 
+                            # loss for each bounding box prediction
+                            # (basically what ground state bounding box
+                            # is closest to each predicted one?)
+                            vals, minIdx = torch.min(GIoULosses, dim=0)
+                            
+                            # Get the min loss for each bounding
+                            # box prediction and sum it up
+                            GIoU_loss += torch.sum(vals)
+                    
+                    # Average the total GIoU loss
+                    GIoU_loss /= iou_p.shape[0]
                     
                     
                     
@@ -236,7 +272,13 @@ class YOLOX(nn.Module):
                     
                     
                     
-                    ### IoU (object) predictions
+                    ### IoU (objectiveness) predictions
+                    
+                    # Compute the IoU of the predictions
+                    
+                    ## Compute IoU, then use BCE
+                    # - for IoU, compare each bounding box with their ground truth BB
+                    # - IoU loss = 1-IoU
                     
                     #iouLoss = self.losses.BinaryCrossEntropy(iou_p.to(cpu), torch.stack([i["pix_obj"] for i in y_b]).to(cpu))
                     
@@ -252,7 +294,7 @@ class YOLOX(nn.Module):
                     
                     # Get the final loss for this prediction
                     #finalLoss = FL# + regLoss + iouLoss
-                    finalLoss = FL
+                    finalLoss = GIoU_loss
                     totalLoss += finalLoss
                 
                 

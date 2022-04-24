@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from LossHelper import generalized_box_iou
 
 
 # Class used to store loss functions needed for the
@@ -66,3 +67,59 @@ class LossFunctions():
         
         # Return the loss value
         return -torch.mean(y*torch.log(y_hat) + (1-y)*torch.log(1-y_hat))
+
+    
+    # Thank to Adrian Rosebrock for supplying code on
+    # PyImageSearch. My code is an editted form of theirs. You
+    # could say, I really o U Hahahaha!
+    # https://pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
+    
+    # This function returns the IoU loss given two bounding boxes
+    # Inputs:
+    #   X and Y - Bounding boxes with 4 elements:
+    #   1. top-left x coordinate of the bounding box
+    #   2. top-left y coordinate of the bounding box
+    #   3. heihgt of the bounding box
+    #   4. width of the bounding box
+    def IoU(self, X, Y):
+        # determine the (x, y)-coordinates of the intersection rectangle
+        xA = max(X[0], Y[0])
+        yA = max(X[1], Y[1])
+        xB = min(X[0]+X[2], Y[0]+Y[2])
+        yB = min(X[0]+X[3], Y[0]+Y[3])
+        
+        # compute the area of intersection rectangle
+        interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+        
+        # compute the area of both the prediction and ground-truth
+        # rectangles
+        boxAArea = ((X[0]+X[2]) - X[0] + 1) * ((X[1]+X[3]) - X[1] + 1)
+        boxBArea = ((Y[0]+Y[2]) - Y[0] + 1) * ((Y[1]+Y[3]) - Y[1] + 1)
+        
+        # compute the intersection over union by taking the intersection
+        # area and dividing it by the sum of prediction + ground-truth
+        # areas - the interesection area
+        union = float(boxAArea + boxBArea - interArea)
+        iou = interArea / union
+        
+        # return the intersection over union value and the
+        # union value
+        return iou, union
+
+
+    # Thanks to jw9730 for supplying this code on GitHub.
+    # I guess you could also say, I o U too. :)
+    # https://github.com/jw9730/ori-giou/commits?author=jw9730
+    # Get the Generic IoU loss given two bounding boxes
+    # Inputs:
+    #   X and Y - Bounding boxes with 4 elements:
+    #   1. top-left x coordinate of the bounding box
+    #   2. top-left y coordinate of the bounding box
+    #   3. heihgt of the bounding box
+    #   4. width of the bounding box
+    def GIoU(self, box1, box2):
+        # Convert the boxes to the correct form
+        box1 = torch.stack([torch.stack([X[0], X[1], X[0], X[1]+X[3], X[0]+X[2], X[1]+X[3], X[0]+X[2], X[1]]) for X in box1])
+        box2 = torch.stack([torch.stack([Y[0], Y[1], Y[0], Y[1]+Y[3], Y[0]+Y[2], Y[1]+Y[3], Y[0]+Y[2], Y[1]]) for Y in box2])
+        
+        return generalized_box_iou(box1.float(), box2.float())

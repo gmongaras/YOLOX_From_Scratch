@@ -199,34 +199,31 @@ class YOLOX(nn.Module):
                     reg_labels = torch.where(torch.logical_and(torch.max(reg_p[:,:,2:], dim=-1)[0] < reg_const_high, torch.min(reg_p[:,:,2:], dim=-1)[0] > reg_const_low), 1, 0)
                     
                     
-                    ### IoU calculation
+                    ### GIoU Loss calculation
+                    
                     
                     # Each prediction finds the boundary box with the best IoU
                     # which we will save to be used in the other functions.
                     
-                    # Iterate over all batch elements
-                    for b_num in range(0, iou_p.shape[0]):
-                        # The total GIoU loss
-                        GIoU_loss = 0
-                        
-                        # Iterate over all bounding box predictions
-                        for p_num in range(0, reg_p[b_num].shape[0]):
-                            # Get the best bounding box ground truth to the
-                            # prediction and the GIoU of that bounding box
-                            GIoULosses = self.losses.GIoU(reg_p[b_num], torch.tensor(y_b[b_num]['bbox'], dtype=float, requires_grad=False)).T
-                            
-                            # Get the indices and values for the best 
-                            # loss for each bounding box prediction
-                            # (basically what ground state bounding box
-                            # is closest to each predicted one?)
-                            vals, minIdx = torch.min(GIoULosses, dim=0)
-                            
-                            # Get the min loss for each bounding
-                            # box prediction and sum it up
-                            GIoU_loss += torch.sum(vals)
+                    # Ensure no negative values
+                    #bbox = torch.abs(reg_p[b_num])
+                    #bbox[torch.any(bbox > X.shape[-1])] = X.shape[-1]
+                    bbox = X.shape[-1]/(1+torch.exp(-reg_p[batch]))
+                    #bbox = reg_p[b_num, reg_labels[b_num] == 1]
                     
-                    # Average the total GIoU loss
-                    GIoU_loss /= iou_p.shape[0]
+                    # Get the best bounding box ground truth to the
+                    # prediction and the GIoU of that bounding box
+                    GIoULosses = self.losses.GIoU(bbox, torch.tensor(y_b[batch]['bbox'], dtype=float, requires_grad=False))
+                    
+                    # Get the indices and values for the best 
+                    # loss for each bounding box prediction
+                    # (basically what ground state bounding box
+                    # is closest to each predicted one?)
+                    vals, minIdx = torch.min(GIoULosses, dim=-1)
+                    
+                    # Get the min loss for each bounding
+                    # box prediction and sum it up
+                    GIoU_loss = torch.sum(vals)
                     
                     
                     
@@ -235,15 +232,14 @@ class YOLOX(nn.Module):
                     
                     # Get the ground truth value for each prediction as a one-hot vector
                     GT = torch.zeros(list(cls_p.shape[:-1])+[self.numCats+1])
-                    for b_num in range(0, cls_p.shape[0]): # Iterate over all batch elements
-                        for p_num in range(cls_p[b_num].shape[0]): # Iterate over all predictions
-                            # Label as background if not a positive pred
-                            if reg_labels[b_num, p_num] == 0:
-                                GT[b_num, p_num, 0] = 1
-                                continue
-                            
-                            # Store the GT value as a 1 in the one-hot vector
-                            GT[b_num, p_num][y_b[b_num]['pix_cls'][torch.div(reg_p[b_num, p_num, 2].int(), 2, rounding_mode="trunc"), torch.div(reg_p[b_num, p_num, 2].int(), 2, rounding_mode="trunc")]] = 1
+                    for p_num in range(cls_p[batch].shape[0]): # Iterate over all predictions
+                        # Label as background if not a positive pred
+                        if reg_labels[batch, p_num] == 0:
+                            GT[batch, p_num, 0] = 1
+                            continue
+                        
+                        # Store the GT value as a 1 in the one-hot vector
+                        GT[batch, p_num][y_b[batch]['pix_cls'][torch.div(reg_p[batch, p_num, 2].int(), 2, rounding_mode="trunc"), torch.div(reg_p[batch, p_num, 2].int(), 2, rounding_mode="trunc")]] = 1
                     
                     # Get the image class ground truth values
                     #y_b_cls = torch.stack([i["pix_cls"] for i in y_b]).to(cpu)
@@ -308,6 +304,7 @@ class YOLOX(nn.Module):
                 
                 # Backpropogate the loss
                 totalLoss.backward()
+                torch.nn.utils.clip_grad_norm_(self.parameters(), 0.1)
                 
                 # Step the optimizer
                 self.optimizer.step()

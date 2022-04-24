@@ -1,6 +1,5 @@
 import torch
 from torch import nn
-from LossHelper import generalized_box_iou
 
 
 # Class used to store loss functions needed for the
@@ -107,9 +106,6 @@ class LossFunctions():
         return iou, union
 
 
-    # Thanks to jw9730 for supplying this code on GitHub.
-    # I guess you could also say, I o U too. :)
-    # https://github.com/jw9730/ori-giou/commits?author=jw9730
     # Get the Generic IoU loss given two bounding boxes
     # Inputs:
     #   X and Y - Bounding boxes with 4 elements:
@@ -117,9 +113,81 @@ class LossFunctions():
     #   2. top-left y coordinate of the bounding box
     #   3. heihgt of the bounding box
     #   4. width of the bounding box
-    def GIoU(self, box1, box2):
+    # Outputs:
+    #   A tensor of shape (M, N)
+    #   M = number of predicted boudning boxes
+    #   N = number of ground truth boudning boxes
+    def GIoU(self, pred, GT):
         # Convert the boxes to the correct form
-        box1 = torch.stack([torch.stack([X[0], X[1], X[0], X[1]+X[3], X[0]+X[2], X[1]+X[3], X[0]+X[2], X[1]]) for X in box1])
-        box2 = torch.stack([torch.stack([Y[0], Y[1], Y[0], Y[1]+Y[3], Y[0]+Y[2], Y[1]+Y[3], Y[0]+Y[2], Y[1]]) for Y in box2])
+        #box1 = torch.stack([torch.stack([X[0], X[1], X[0], X[1]+X[3], X[0]+X[2], X[1]+X[3], X[0]+X[2], X[1]]) for X in box1])
+        #box2 = torch.stack([torch.stack([Y[0], Y[1], Y[0], Y[1]+Y[3], Y[0]+Y[2], Y[1]+Y[3], Y[0]+Y[2], Y[1]]) for Y in box2])
         
-        return generalized_box_iou(box1.float(), box2.float())
+        #return 1 - generalized_box_iou(box1.float(), box2.float())
+        
+        # Convert the boxes to the correct form:
+        #   1: x_1 - The lower/let-most x value
+        #   2: y_1 - The lower/upper-most y value
+        #   3: x_2 - The higher/right-most x value
+        #   4: y_2 - The higher/bottom-most y value
+        B_p_stack = torch.stack([torch.stack([X[0], X[1], X[0]+X[2], X[1]+X[3]]) for X in pred]).float()
+        B_g_stack = torch.stack([torch.stack([Y[0], Y[1], Y[0]+Y[2], Y[1]+Y[3]]) for Y in GT]).float()
+        
+        # 1: Store the predictions in separate variables
+        # and ensure x_2 > x_1 and y_2 > y_1
+        B_p_stack = B_p_stack.T
+        x_1_p = torch.minimum(B_p_stack[0], B_p_stack[2])
+        x_2_p = torch.maximum(B_p_stack[0], B_p_stack[2])
+        y_1_p = torch.minimum(B_p_stack[1], B_p_stack[3])
+        y_2_p = torch.maximum(B_p_stack[1], B_p_stack[3])
+        
+        # Array to save all loss values
+        lossVals = []
+        
+        # Iterate over all ground truth bounding boxes
+        for B_g in B_g_stack:
+            # Store the value in B_g in separate variables
+            x_1_g = B_g[0]
+            x_2_g = B_g[1]
+            y_1_g = B_g[2]
+            y_2_g = B_g[3]
+            
+            # 2: Calculate area of B_g
+            A_g = (x_2_g - x_1_g) * (y_2_g - y_1_g)
+            
+            # 3: Calculate area of B_p
+            A_p = (x_2_p - x_1_p) * (y_2_p - y_1_p)
+            
+            # 4: Calculate intersection between B_p and B_g
+            x_1_I = torch.maximum(x_1_p, x_1_g)
+            x_2_I = torch.minimum(x_2_p, x_2_g)
+            y_1_I = torch.maximum(y_1_p, y_1_g)
+            y_2_I = torch.minimum(y_2_p, y_2_g)
+            I = torch.zeros(x_1_I.shape)
+            I[torch.any(torch.logical_or(x_2_I > x_1_I, y_2_I > y_1_I))] = \
+                (x_2_I - x_1_I) * (y_2_I - y_1_I)
+            
+            # 5: Find coordinate of smallest enclosing box B_c
+            x_1_c = torch.minimum(x_1_p, x_1_g)
+            x_2_c = torch.maximum(x_2_p, x_2_g)
+            y_1_c = torch.minimum(y_1_p, y_1_g)
+            y_2_c = torch.maximum(y_2_p, y_2_g)
+            
+            # 6: Calculate area of B_c
+            A_c = (x_2_c - x_1_c) * (y_2_c - y_1_c)
+            
+            # 7: Calculate IoU
+            U = A_p + A_g - I
+            IoU = I/U
+            
+            # 8: Calculate the GIoU
+            GIoU = IoU - ((A_c - U) / A_c)
+            
+            # 9: Save the values as loss
+            # (we use 1 - GIoI as we want to minimize the GIoU)
+            lossVals.append(1 - GIoU)
+        
+        # Create a tensor of the losses and return it. Final tensor
+        # will be of shape: (M, N)
+        # - M = number of predicted boudning boxes
+        # - N = number of ground truth boudning boxes
+        return torch.stack(lossVals).T

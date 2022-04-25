@@ -4,6 +4,7 @@ from LossFunctions import LossFunctions
 import torch
 from torch import nn
 import numpy as np
+import math
 
 
 cpu = torch.device('cpu')
@@ -122,12 +123,6 @@ class YOLOX(nn.Module):
         iou11_2 = torch.sigmoid(iou11_2)
         iou11_3 = torch.sigmoid(iou11_3)
         
-        # Send the reg through a ReLU function to get a value
-        # above 0
-        reg11_1 = torch.relu(reg11_1)
-        reg11_2 = torch.relu(reg11_2)
-        reg11_3 = torch.relu(reg11_3)
-        
         # Return the data as arrays
         return [clsConv1,clsConv2,clsConv3], [reg11_1,reg11_2,reg11_3], [iou11_1,iou11_2,iou11_3]
     
@@ -209,15 +204,16 @@ class YOLOX(nn.Module):
                     
                     # Iterate over all batch elements
                     for b_num in range(0, iou_p.shape[0]):
+                        bbox = reg_p[b_num]
                         # Ensure no negative values
                         #bbox = torch.abs(reg_p[b_num])
                         #bbox[torch.any(bbox > X.shape[-1])] = X.shape[-1]
-                        bbox = X.shape[-1]/(1+torch.exp(-reg_p[b_num]))
+                        #bbox = X.shape[-1]/(1+torch.exp(-reg_p[b_num]))
                         #bbox = reg_p[b_num, reg_labels[b_num] == 1]
                         
                         # Get the best bounding box ground truth to the
                         # prediction and the GIoU of that bounding box
-                        GIoULosses = self.losses.GIoU(bbox, torch.tensor(y_b[b_num]['bbox'], dtype=float, requires_grad=False))
+                        GIoULosses = self.losses.GIoU(bbox.to(cpu), torch.tensor(y_b[b_num]['bbox'], dtype=float, requires_grad=False, device=cpu))
                         
                         # Get the indices and values for the best 
                         # loss for each bounding box prediction
@@ -303,16 +299,19 @@ class YOLOX(nn.Module):
                 
                 
                 ### Updating the model
-                #if epoch%5 == 0:
-                #    plt.imshow(torch.argmax(cls_p[0], dim=-1).cpu().detach().numpy(), interpolation='nearest')
-                #    plt.show()
+                if epoch%5 == 0:
+                    plt.imshow(torch.argmax(cls_p[0], dim=-1).reshape(int(cls_p[0].shape[0]**0.5), int(cls_p[0].shape[0]**0.5)).cpu().detach().numpy(), interpolation='nearest')
+                    plt.show()
                 #if epoch%5 == 0:
                 #    plt.imshow(iou_p[0].cpu().detach().numpy(), interpolation='nearest')
                 #    plt.show()
                 
                 # Backpropogate the loss
                 totalLoss.backward()
-                torch.nn.utils.clip_grad_norm_(self.parameters(), 0.1)
+                
+                # Clip the gradients so that the model doesn't
+                # go too crazy with updating its parameters
+                torch.nn.utils.clip_grad_norm_(self.parameters(), 1)
                 
                 # Step the optimizer
                 self.optimizer.step()
@@ -328,6 +327,7 @@ class YOLOX(nn.Module):
                 batchLoss += totalLoss.cpu().detach().numpy().item()
                 
             print(f"Step #{epoch}      Total Batch Loss: {batchLoss}")
+            print(bbox)
         
         return 0
         

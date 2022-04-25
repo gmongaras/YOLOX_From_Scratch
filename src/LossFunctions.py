@@ -184,7 +184,8 @@ class LossFunctions():
             
             # 9: Save the values as loss
             # (we use 1 - GIoI as we want to minimize the GIoU)
-            lossVals.append(1 - GIoU)
+            # (we also square the value so it's not negative)
+            lossVals.append((1 - GIoU) ** 2)
         
         # Create a tensor of the losses and return it. Final tensor
         # will be of shape: (M, N)

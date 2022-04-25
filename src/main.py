@@ -49,7 +49,7 @@ def main():
     dataType = "val2017"    # The type of data being used in the COCO dataset
     annFile = '{}/annotations/instances_{}.json'.format(dataDir,dataType)
     categories = ["person", "dog", "cat"]   # The categories to load in
-    numToLoad = 2           # Max Number of data images to load in (use -1 for all)
+    numToLoad = 10           # Max Number of data images to load in (use -1 for all)
     resize = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
     
     

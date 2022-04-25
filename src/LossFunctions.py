@@ -70,19 +70,19 @@ class LossFunctions():
     
     # Get the cross entropy loss given class predictions
     # Inputs:
-    #   y_hat - A tensor of shape (batchSize, H, W, 4) where each pixel is
+    #   y_hat - A tensor of shape (batchSize, H, W, 4) where each set of 4 is
     #           a predicted bounding box
-    #   y - A tensor of shape (batchSize, H, W) where each pixel
+    #   y - A tensor of shape (batchSize, H, W, 4) where each set of 4
     #       is a ground truth bounding box
     # Outputs:
     #   The Cross Entropy of the input tensor
     def CrossEntropy(self, y_hat, y):
         # Ensure no Nan values
         y_hat = torch.where(y_hat < 0.000001, y_hat+0.000001, y_hat)
-        y_hat = torch.where(y_hat > 0.999999, y_hat-0.000001, y_hat)
+        #y_hat = torch.where(y_hat > 0.999999, y_hat-0.000001, y_hat)
         
         # Return the loss value
-        return -torch.sum(y*torch.log(y_hat))
+        return -torch.mean(y*torch.log(y_hat))
 
 
     # Get the Generic IoU loss given two bounding boxes

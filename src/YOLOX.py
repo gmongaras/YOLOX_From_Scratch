@@ -1,5 +1,6 @@
 from Darknet53 import Darknet53
 from LossFunctions import LossFunctions
+from pycocotools.cocoeval import COCOeval
 
 import torch
 from torch import nn
@@ -215,6 +216,7 @@ class YOLOX(nn.Module):
                     for b_num in range(0, iou_p.shape[0]):
                         bbox = reg_p[b_num]
                         # Ensure no negative values
+                        #bbox = torch.clamp(bbox, 0, X.shape[-1])
                         #bbox = torch.abs(reg_p[b_num])
                         #bbox[torch.any(bbox > X.shape[-1])] = X.shape[-1]
                         #bbox = X.shape[-1]/(1+torch.exp(-reg_p[b_num]))
@@ -244,11 +246,10 @@ class YOLOX(nn.Module):
                     
                     
                     
-                    
                     ### Class predictions
                     
                     # Predict class in bounding box, not in cell ...
-                    #
+                    # Use Sim OTA
                     #
                     
                     # Get the ground truth value for each prediction as a one-hot vector
@@ -289,19 +290,60 @@ class YOLOX(nn.Module):
                     ## pixel to predict, use CE to make it predict that
                     ## bounding box
                     
+                    # # Total regression loss for the bounding boxes
+                    # regLoss = 0
+                    
+                    # # Iterate over all elements in the batch
+                    # for b_num in range(0, len(y_b)):
+                    #     # Get a tensor of all the ground truth boundary boxes
+                    #     GTbbox = torch.tensor([y_b[b_num]["bbox"][i] for i in bestIdx[b_num]], requires_grad=False, device=cpu)
+                        
+                    #     # Get the loss between the batch elements
+                    #     regLoss += self.losses.CrossEntropy(reg_p[b_num].to(cpu), GTbbox)
+                    
+                    # # Average the regression loss over the batch elements
+                    # regLoss = regLoss/len(y_b)
+                    
+                    
                     # Total regression loss for the bounding boxes
-                    regLoss = 0
+                    iouLoss = 0
                     
                     # Iterate over all elements in the batch
                     for b_num in range(0, len(y_b)):
-                        # Get a tensor of all the ground truth boundary boxes
-                        GTbbox = torch.tensor([y_b[b_num]["bbox"][i] for i in bestIdx[b_num]], requires_grad=False)
+                        ## Get a tensor of all the ground truth objective values.
+                        ## Basically, this is a 1 if an object is in the box and
+                        ## a 0 otherwise
+                        
+                        # Get the current IoU (objctiveness) predictions
+                        obj = torch.squeeze(iou_p[b_num])
+                        
+                        # Initialze the tensor to zeros
+                        GTobj = torch.squeeze(torch.zeros(iou_p[b_num].shape, requires_grad=False, device=cpu))
+                        
+                        # Get all ground truth bounding boxes in this image
+                        GT_bbox = torch.tensor(y_b[b_num]["bbox"], device=cpu, requires_grad=False)
+                        
+                        # The ground thruth
+                        I = torch.zeros(obj.shape, requires_grad=False)
+                        
+                        # Iterate over all GT boxes
+                        for box in GT_bbox:
+                            # Broadcast the GT box
+                            box = torch.broadcast_to(box, reg_p[b_num].shape)
+                            
+                            # Get the intersection between the GT box and the
+                            # predicted boxes
+                            x_1_I = torch.maximum(reg_p[b_num][:, 0], box[:, 0])
+                            x_2_I = torch.minimum(reg_p[b_num][:, 0]+reg_p[b_num][:, 2], box[:, 0]+box[:, 2])
+                            y_1_I = torch.maximum(reg_p[b_num][:, 1], box[:, 1])
+                            y_2_I = torch.minimum(reg_p[b_num][:, 1]+reg_p[b_num][:, 3], box[:, 1]+box[:, 3])
+                            I[torch.logical_or(x_2_I > x_1_I, y_2_I > y_1_I)] = 1
                         
                         # Get the loss between the batch elements
-                        regLoss += self.losses.CrossEntropy(reg_p[b_num], GTbbox)
+                        iouLoss += self.losses.BinaryCrossEntropy(obj.to(cpu), GTobj)
                     
                     # Average the regression loss over the batch elements
-                    regLoss = torch.abs(regLoss/len(y_b))
+                    iouLoss = iouLoss/len(y_b)
                     
                     
                     
@@ -328,7 +370,7 @@ class YOLOX(nn.Module):
                     
                     # Get the final loss for this prediction
                     #finalLoss = FL# + regLoss + iouLoss
-                    finalLoss = regLoss
+                    finalLoss = iouLoss + GIoU_loss
                     totalLoss += finalLoss
                 
                 
@@ -345,7 +387,7 @@ class YOLOX(nn.Module):
                 
                 # Clip the gradients so that the model doesn't
                 # go too crazy when updating its parameters
-                torch.nn.utils.clip_grad_norm_(self.parameters(), 0.1)
+                torch.nn.utils.clip_grad_norm_(self.parameters(), 2)
                 
                 # Step the optimizer
                 self.optimizer.step()
@@ -361,7 +403,8 @@ class YOLOX(nn.Module):
                 batchLoss += totalLoss.cpu().detach().numpy().item()
                 
             print(f"Step #{epoch}      Total Batch Loss: {batchLoss}")
-            print(bbox)
+            print(reg_p[0])
+            print(iou_p[0])
         
         return 0
         

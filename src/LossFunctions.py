@@ -66,44 +66,23 @@ class LossFunctions():
         
         # Return the loss value
         return -torch.mean(y*torch.log(y_hat) + (1-y)*torch.log(1-y_hat))
-
     
-    # Thank to Adrian Rosebrock for supplying code on
-    # PyImageSearch. My code is an editted form of theirs. You
-    # could say, I really o U Hahahaha!
-    # https://pyimagesearch.com/2016/11/07/intersection-over-union-iou-for-object-detection/
     
-    # This function returns the IoU loss given two bounding boxes
+    # Get the cross entropy loss given class predictions
     # Inputs:
-    #   X and Y - Bounding boxes with 4 elements:
-    #   1. top-left x coordinate of the bounding box
-    #   2. top-left y coordinate of the bounding box
-    #   3. heihgt of the bounding box
-    #   4. width of the bounding box
-    def IoU(self, X, Y):
-        # determine the (x, y)-coordinates of the intersection rectangle
-        xA = max(X[0], Y[0])
-        yA = max(X[1], Y[1])
-        xB = min(X[0]+X[2], Y[0]+Y[2])
-        yB = min(X[0]+X[3], Y[0]+Y[3])
+    #   y_hat - A tensor of shape (batchSize, H, W, 4) where each pixel is
+    #           a predicted bounding box
+    #   y - A tensor of shape (batchSize, H, W) where each pixel
+    #       is a ground truth bounding box
+    # Outputs:
+    #   The Cross Entropy of the input tensor
+    def CrossEntropy(self, y_hat, y):
+        # Ensure no Nan values
+        y_hat = torch.where(y_hat < 0.000001, y_hat+0.000001, y_hat)
+        y_hat = torch.where(y_hat > 0.999999, y_hat-0.000001, y_hat)
         
-        # compute the area of intersection rectangle
-        interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
-        
-        # compute the area of both the prediction and ground-truth
-        # rectangles
-        boxAArea = ((X[0]+X[2]) - X[0] + 1) * ((X[1]+X[3]) - X[1] + 1)
-        boxBArea = ((Y[0]+Y[2]) - Y[0] + 1) * ((Y[1]+Y[3]) - Y[1] + 1)
-        
-        # compute the intersection over union by taking the intersection
-        # area and dividing it by the sum of prediction + ground-truth
-        # areas - the interesection area
-        union = float(boxAArea + boxBArea - interArea)
-        iou = interArea / union
-        
-        # return the intersection over union value and the
-        # union value
-        return iou, union
+        # Return the loss value
+        return -torch.sum(y*torch.log(y_hat))
 
 
     # Get the Generic IoU loss given two bounding boxes

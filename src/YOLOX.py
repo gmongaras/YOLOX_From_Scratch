@@ -165,6 +165,10 @@ class YOLOX(nn.Module):
                 # Get a prediction of the bounding boxes on the input image
                 cls, reg, iou = self.forward(X_b)
                 
+                # Get the absolute value of the boudning box
+                # predictions so the value is over 0
+                reg = [torch.abs(i) for i in reg]
+                
                 # Cumulate the loss across the three predictions
                 totalLoss = 0
                 
@@ -199,6 +203,11 @@ class YOLOX(nn.Module):
                     # The total GIoU loss
                     GIoU_loss = 0
                     
+                    # The indices of the best IoU losses (what
+                    # GT bounding box does this predict most
+                    # closely match?)
+                    bestIdx = []
+                    
                     # Each prediction finds the boundary box with the best IoU
                     # which we will save to be used in the other functions.
                     
@@ -211,15 +220,17 @@ class YOLOX(nn.Module):
                         #bbox = X.shape[-1]/(1+torch.exp(-reg_p[b_num]))
                         #bbox = reg_p[b_num, reg_labels[b_num] == 1]
                         
-                        # Get the best bounding box ground truth to the
-                        # prediction and the GIoU of that bounding box
-                        GIoULosses = self.losses.GIoU(bbox.to(cpu), torch.tensor(y_b[b_num]['bbox'], dtype=float, requires_grad=False, device=cpu))
+                        # Get the GIoU of the bounding boxes
+                        GIoUVals = self.losses.GIoU(bbox.to(cpu), torch.tensor(y_b[b_num]['bbox'], dtype=float, requires_grad=False, device=cpu))
                         
                         # Get the indices and values for the best 
                         # loss for each bounding box prediction
                         # (basically what ground state bounding box
                         # is closest to each predicted one?)
-                        vals, minIdx = torch.min(GIoULosses, dim=-1)
+                        vals, minIdx = torch.min(GIoUVals, dim=-1)
+                        
+                        # Save the indices for later use
+                        bestIdx.append(minIdx)
                         
                         # Get the min loss for each bounding
                         # box prediction and sum it up
@@ -228,10 +239,17 @@ class YOLOX(nn.Module):
                     # Average the total GIoU loss
                     GIoU_loss /= iou_p.shape[0]
                     
+                    # Convert the min indices to a tensor
+                    bestIdx = torch.stack(bestIdx)
+                    
                     
                     
                     
                     ### Class predictions
+                    
+                    # Predict class in bounding box, not in cell ...
+                    #
+                    #
                     
                     # Get the ground truth value for each prediction as a one-hot vector
                     GT = torch.zeros(list(cls_p.shape[:-1])+[self.numCats+1])
@@ -263,11 +281,27 @@ class YOLOX(nn.Module):
                     
                     ### Regression predictions
                     
-                    # Get the centerness of all bounding box predictions
-                    # Notes: Centerness defined in the FCOS paper
-                    #reg_cent = 1
+                    # # Get the centerness of all bounding box predictions
+                    # # Notes: Centerness defined in the FCOS paper
+                    # # reg_cent = 1
                     
-                    # Use GIoU for loss
+                    ## Now that we know what bounding boxes we want each
+                    ## pixel to predict, use CE to make it predict that
+                    ## bounding box
+                    
+                    # Total regression loss for the bounding boxes
+                    regLoss = 0
+                    
+                    # Iterate over all elements in the batch
+                    for b_num in range(0, len(y_b)):
+                        # Get a tensor of all the ground truth boundary boxes
+                        GTbbox = torch.tensor([y_b[b_num]["bbox"][i] for i in bestIdx[b_num]], requires_grad=False)
+                        
+                        # Get the loss between the batch elements
+                        regLoss += self.losses.CrossEntropy(reg_p[b_num], GTbbox)
+                    
+                    # Average the regression loss over the batch elements
+                    regLoss = torch.abs(regLoss/len(y_b))
                     
                     
                     
@@ -294,14 +328,14 @@ class YOLOX(nn.Module):
                     
                     # Get the final loss for this prediction
                     #finalLoss = FL# + regLoss + iouLoss
-                    finalLoss = GIoU_loss + FL
+                    finalLoss = regLoss
                     totalLoss += finalLoss
                 
                 
                 ### Updating the model
-                if epoch%5 == 0:
-                    plt.imshow(torch.argmax(cls_p[0], dim=-1).reshape(int(cls_p[0].shape[0]**0.5), int(cls_p[0].shape[0]**0.5)).cpu().detach().numpy(), interpolation='nearest')
-                    plt.show()
+                #if epoch%5 == 0:
+                #    plt.imshow(torch.argmax(cls_p[0], dim=-1).reshape(int(cls_p[0].shape[0]**0.5), int(cls_p[0].shape[0]**0.5)).cpu().detach().numpy(), interpolation='nearest')
+                #    plt.show()
                 #if epoch%5 == 0:
                 #    plt.imshow(iou_p[0].cpu().detach().numpy(), interpolation='nearest')
                 #    plt.show()
@@ -310,8 +344,8 @@ class YOLOX(nn.Module):
                 totalLoss.backward()
                 
                 # Clip the gradients so that the model doesn't
-                # go too crazy with updating its parameters
-                torch.nn.utils.clip_grad_norm_(self.parameters(), 1)
+                # go too crazy when updating its parameters
+                torch.nn.utils.clip_grad_norm_(self.parameters(), 0.1)
                 
                 # Step the optimizer
                 self.optimizer.step()

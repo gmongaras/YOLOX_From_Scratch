@@ -6,9 +6,8 @@ class Darknet53(nn.Module):
     # Initialize the mode
     # Inputs:
     #   device - Device to put the network on
-    #   SPPDim - The dimension to convert each image to (output image will be (C x SPPDim x SPPDim))
     #   inChanSize - The number of input channels (3 for RGB)
-    def __init__(self, device, SPPDim, inChanSize=3):
+    def __init__(self, device, inChanSize=3):
         super(Darknet53, self).__init__()
         
         ### Darknet blocks

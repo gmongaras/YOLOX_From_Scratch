@@ -54,6 +54,10 @@ class LossFunctions():
     # Outputs:
     #   The Binary Cross Entropy of the input tensor
     def BinaryCrossEntropy(self, y_hat, y):
+        # If the input is an empty tensor, return 0
+        if y_hat.size() == torch.Size([0]) or y.size() == torch.Size([0]):
+            return 0
+        
         # Flatten the tensors if the dimensions are over two
         if len(y_hat.shape) > 2:
             y_hat = torch.flatten(y_hat, 1, -1)
@@ -113,11 +117,12 @@ class LossFunctions():
         
         # 1: Store the predictions in separate variables
         # and ensure x_2 > x_1 and y_2 > y_1
-        B_p_stack = B_p_stack.T
-        x_1_p = torch.minimum(B_p_stack[0], B_p_stack[2])
-        x_2_p = torch.maximum(B_p_stack[0], B_p_stack[2])
-        y_1_p = torch.minimum(B_p_stack[1], B_p_stack[3])
-        y_2_p = torch.maximum(B_p_stack[1], B_p_stack[3])
+        if B_p_stack.shape[-1] != B_g_stack.shape[-1]:
+            B_p_stack = B_p_stack.T
+        x_1_p = torch.minimum(B_p_stack[:, 0], B_p_stack[:, 2])
+        x_2_p = torch.maximum(B_p_stack[:, 0], B_p_stack[:, 2])
+        y_1_p = torch.minimum(B_p_stack[:, 1], B_p_stack[:, 3])
+        y_2_p = torch.maximum(B_p_stack[:, 1], B_p_stack[:, 3])
         
         # Array to save all loss values
         lossVals = []
@@ -126,8 +131,8 @@ class LossFunctions():
         for B_g in B_g_stack:
             # Store the value in B_g in separate variables
             x_1_g = B_g[0]
-            x_2_g = B_g[1]
-            y_1_g = B_g[2]
+            x_2_g = B_g[2]
+            y_1_g = B_g[1]
             y_2_g = B_g[3]
             
             # 2: Calculate area of B_g
@@ -163,11 +168,11 @@ class LossFunctions():
             
             # 9: Save the values as loss
             # (we use 1 - GIoI as we want to minimize the GIoU)
-            # (we also square the value so it's not negative)
-            lossVals.append((1 - GIoU) ** 2)
+            # (we also take the absolute value so it's not negative)
+            lossVals.append(torch.abs(1 - GIoU))
         
         # Create a tensor of the losses and return it. Final tensor
         # will be of shape: (M, N)
-        # - M = number of predicted boudning boxes
-        # - N = number of ground truth boudning boxes
+        # - M = number of predicted boundning boxes
+        # - N = number of ground truth boundning boxes
         return torch.stack(lossVals).T

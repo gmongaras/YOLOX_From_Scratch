@@ -91,22 +91,18 @@ class LossFunctions():
 
     # Get the Generic IoU loss given two bounding boxes
     # Inputs:
-    #   X and Y - Bounding boxes with 4 elements:
-    #   1. top-left x coordinate of the bounding box
-    #   2. top-left y coordinate of the bounding box
-    #   3. heihgt of the bounding box
-    #   4. width of the bounding box
+    #   pred - A set of predicted bounding boxes with 4 elements:
+    #     1. top-left x coordinate of the bounding box
+    #     2. top-left y coordinate of the bounding box
+    #     3. heihgt of the bounding box
+    #     4. width of the bounding box
+    #   Y - A set of ground truth boudning boxes with the same shape
+    #       as the predicted bounding boxes
+    #   The tensors have shape: (numImages, 4)
     # Outputs:
-    #   A tensor of shape (M, N)
-    #   M = number of predicted boudning boxes
-    #   N = number of ground truth boudning boxes
+    #   A tensor where each value is the loss for that
+    #   image (numImages)
     def GIoU(self, pred, GT):
-        # Convert the boxes to the correct form
-        #box1 = torch.stack([torch.stack([X[0], X[1], X[0], X[1]+X[3], X[0]+X[2], X[1]+X[3], X[0]+X[2], X[1]]) for X in box1])
-        #box2 = torch.stack([torch.stack([Y[0], Y[1], Y[0], Y[1]+Y[3], Y[0]+Y[2], Y[1]+Y[3], Y[0]+Y[2], Y[1]]) for Y in box2])
-        
-        #return 1 - generalized_box_iou(box1.float(), box2.float())
-        
         # Convert the boxes to the correct form:
         #   1: x_1 - The lower/let-most x value
         #   2: y_1 - The lower/upper-most y value
@@ -127,52 +123,47 @@ class LossFunctions():
         # Array to save all loss values
         lossVals = []
         
-        # Iterate over all ground truth bounding boxes
-        for B_g in B_g_stack:
-            # Store the value in B_g in separate variables
-            x_1_g = B_g[0]
-            x_2_g = B_g[2]
-            y_1_g = B_g[1]
-            y_2_g = B_g[3]
-            
-            # 2: Calculate area of B_g
-            A_g = (x_2_g - x_1_g) * (y_2_g - y_1_g)
-            
-            # 3: Calculate area of B_p
-            A_p = (x_2_p - x_1_p) * (y_2_p - y_1_p)
-            
-            # 4: Calculate intersection between B_p and B_g
-            x_1_I = torch.maximum(x_1_p, x_1_g)
-            x_2_I = torch.minimum(x_2_p, x_2_g)
-            y_1_I = torch.maximum(y_1_p, y_1_g)
-            y_2_I = torch.minimum(y_2_p, y_2_g)
-            I = torch.zeros(x_1_I.shape)
-            I[torch.any(torch.logical_or(x_2_I > x_1_I, y_2_I > y_1_I))] = \
-                (x_2_I - x_1_I) * (y_2_I - y_1_I)
-            
-            # 5: Find coordinate of smallest enclosing box B_c
-            x_1_c = torch.minimum(x_1_p, x_1_g)
-            x_2_c = torch.maximum(x_2_p, x_2_g)
-            y_1_c = torch.minimum(y_1_p, y_1_g)
-            y_2_c = torch.maximum(y_2_p, y_2_g)
-            
-            # 6: Calculate area of B_c
-            A_c = (x_2_c - x_1_c) * (y_2_c - y_1_c)
-            
-            # 7: Calculate IoU
-            U = A_p + A_g - I
-            IoU = I/U
-            
-            # 8: Calculate the GIoU
-            GIoU = IoU - ((A_c - U) / A_c)
-            
-            # 9: Save the values as loss
-            # (we use 1 - GIoI as we want to minimize the GIoU)
-            # (we also take the absolute value so it's not negative)
-            lossVals.append(torch.abs(1 - GIoU))
+        # Store the value in B_g in separate variables
+        x_1_g = B_g_stack[:, 0]
+        x_2_g = B_g_stack[:, 2]
+        y_1_g = B_g_stack[:, 1]
+        y_2_g = B_g_stack[:, 3]
         
-        # Create a tensor of the losses and return it. Final tensor
-        # will be of shape: (M, N)
-        # - M = number of predicted boundning boxes
-        # - N = number of ground truth boundning boxes
-        return torch.stack(lossVals).T
+        # 2: Calculate area of B_g
+        A_g = (x_2_g - x_1_g) * (y_2_g - y_1_g)
+        
+        # 3: Calculate area of B_p
+        A_p = (x_2_p - x_1_p) * (y_2_p - y_1_p)
+        
+        # 4: Calculate intersection between B_p and B_g
+        x_1_I = torch.maximum(x_1_p, x_1_g)
+        x_2_I = torch.minimum(x_2_p, x_2_g)
+        y_1_I = torch.maximum(y_1_p, y_1_g)
+        y_2_I = torch.minimum(y_2_p, y_2_g)
+        I = torch.zeros(x_1_I.shape)
+        I[torch.any(torch.logical_or(x_2_I > x_1_I, y_2_I > y_1_I))] = \
+            (x_2_I - x_1_I) * (y_2_I - y_1_I)
+        
+        # 5: Find coordinate of smallest enclosing box B_c
+        x_1_c = torch.minimum(x_1_p, x_1_g)
+        x_2_c = torch.maximum(x_2_p, x_2_g)
+        y_1_c = torch.minimum(y_1_p, y_1_g)
+        y_2_c = torch.maximum(y_2_p, y_2_g)
+        
+        # 6: Calculate area of B_c
+        A_c = (x_2_c - x_1_c) * (y_2_c - y_1_c)
+        
+        # 7: Calculate IoU
+        U = A_p + A_g - I
+        IoU = I/U
+        
+        # 8: Calculate the GIoU
+        GIoU = IoU - ((A_c - U) / A_c)
+        
+        # 9: Save the values as loss
+        # (we use 1 - GIoI as we want to minimize the GIoU)
+        # (we also take the absolute value so it's not negative)
+        lossVals = 1 - GIoU
+        
+        # Create a tensor of the losses and return it
+        return lossVals

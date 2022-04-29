@@ -195,8 +195,8 @@ def main():
                 #       part of the image and 0 otherwise
                 for w in range(bbox[0], bbox[0]+bbox[2]):
                     for h in range(bbox[1], bbox[1]+bbox[3]):
-                        pix_cls[:][h][w] = cls
-                        pix_obj[:][h][w] = 1
+                        pix_cls[:][w][h] = cls
+                        pix_obj[:][w][h] = 1
         
         # Encode the classes as a tensor
         pix_cls = torch.tensor(pix_cls, dtype=int, device=cpu)

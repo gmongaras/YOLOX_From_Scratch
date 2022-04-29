@@ -44,6 +44,10 @@ class YOLOX(nn.Module):
         self.reg_consts = reg_consts
         self.numCats = numCats
         
+        # Trainable paramters for the exponential function which the
+        # regression values are sent through
+        self.exp_params = nn.ParameterList([nn.Parameter(torch.tensor(1, device=device, dtype=torch.float, requires_grad=True)) for i in range(0, 3)])
+        
         # The stride to move each bounding box by for each different
         # level in the FPN (feature pyramid network)
         self.strides = [32, 16, 8]
@@ -151,7 +155,9 @@ class YOLOX(nn.Module):
     # Input:
     #   GT - Ground truth information about a batch on images
     # Output:
-    #   
+    #   Labels for each level in the FPN where a positive label is
+    #   1 and the negative label is 0. The output is of shape:
+    #   (3, batchSize, FPN Size)
     def setupPos(self, GT):
         # The label information
         labels = []
@@ -178,7 +184,7 @@ class YOLOX(nn.Module):
                         lev_lab[img, p] = 1
                     elif (True in (info[pos[p, 0]+1, pos[p, 1]-1:pos[p, 1]+2] != 0)): # Row 2
                         lev_lab[img, p] = 1
-                    elif (True in (info[pos[p, 0]+2, pos[p, 1]-1:pos[p, 1]+2] != 0)): # Row 3
+                    elif (True in (info[pos[p, 0]-1, pos[p, 1]-1:pos[p, 1]+2] != 0)): # Row 3
                         lev_lab[img, p] = 1
                     # Do nothing if there is no class in a 3x3 area
                     
@@ -190,34 +196,81 @@ class YOLOX(nn.Module):
     
     
     
-    # Label each boundary box with a positive or negative label
-    # to determine which boxes to analyze
+    # Get all ground truth targets for each bounding box
+    # prediction
     # Inputs:
-    #   reg_p - The regression box predictions of the following shape:
-    #           (B x H x W x 4) where B is the batch size
-    #   FPN_lev - The current level in the FPN
-    #   batch_labels - The ground truth information for 
-    #                   each image in the batch
+    #   GT - Ground truth information about a batch on images
+    #   reg_labels_init - Regression label stating which regression
+    #                     values are positive and negative
     # Outputs:
-    #   - The label for each part of the given regression
-    #     values. The output is of the following dimensions:
-    #     (B x H x W) where each value is a label corresponding to
-    #     the pixel-wise value in the regression box input
-    def filterPos(self, reg_p, FPN_lev, batch_GT):
-        # The regression constraints for this FPN level
-        reg_const_low = self.reg_consts[FPN_lev]
-        reg_const_high = self.reg_consts[FPN_lev+1]
+    #   targets - The ground truth bounding boxes for each
+    #             prediction. The value is -1 if there is not bounding
+    #             box to predict to save space. It has shape:
+    #             (numFPNLevels, numImages, FPNsize_x, FPNSize_y, 4)
+    def getTargets(self, GT, reg_labels_init):
+        # The target information
+        targets = []
         
-        # Initialize an array holding the labels
-        reg_labels = torch.zeros(reg_p.shape[:-1])
+        # Iterate over all FPN levels
+        for level in range(0, 3):
+            # Get the FPN level stride
+            stride = self.strides[level]
+            
+            # Get the current FPN coordinates for this level
+            coords = self.FPNPos[level]
+            
+            # array to store the GT bounding box label
+            # for each bounding box prediction
+            targs = torch.negative(torch.ones((len(GT), *coords.shape[:-1], 4), dtype=torch.int16, device=cpu, requires_grad=False))
+            
+            # Iterate over all images in the batch
+            for img in range(0, len(GT)):
+                
+                # Get the image information
+                img_info = GT[img]
+                
+                # Iterate over all FPN coordinates
+                for c_x in range(0, len(coords)):
+                    for c_y in range(0, len(coords[c_x])):
+                        x = coords[c_x, c_y][0]
+                        y = coords[c_x, c_y][1]
+                        
+                        # If there isn't an object in this pixel, store
+                        # an array of -1s
+                        if reg_labels_init[level][img, (c_x*int(math.sqrt(reg_labels_init[level].shape[1])))+c_y] == 0:
+                            continue
+                            
+                        # Best bounding box and it's area.
+                        # Note: we want to smallest bounding box
+                        # this pixel is in
+                        best_bbox = -1
+                        best_bbox_area = torch.inf
+                            
+                        # Iterate over all bounding boxes for this label
+                        for bbox_idx in range(len(img_info['bbox'])):
+                            bbox = img_info['bbox'][bbox_idx]
+                            
+                            # If the pixel falls within a 3x3 area of the bounding box, 
+                            # store it if the area is the smallest
+                            if x+1 >= bbox[0] and x-1 <= bbox[0]+bbox[2] and \
+                                y+1 >= bbox[1] and y-1 <= bbox[1]+bbox[3]:
+                                # Get the area of the bounding box
+                                area = (bbox[0]+bbox[2]) * (bbox[1]+bbox[3])
+                                
+                                # If the area is smaller than the current best,
+                                # store this bounding box
+                                if area < best_bbox_area:
+                                    best_bbox_area = area
+                                    best_bbox = bbox
+                        
+                        # If a boudning box was found, store it
+                        if best_bbox != -1:
+                            targs[img, c_x, c_y] = torch.tensor(best_bbox)
+            
+            # Add this FPN targets to the total targets
+            targets.append(targs.reshape(targs.shape[0], targs.shape[1]*targs.shape[2], targs.shape[3]))
         
-        # Iterate over all ground truth information
-        for GT in batch_GT:
-            # Test if the regression boxes intersect with the
-            # 
-            print()
-        
-        torch.where(torch.logical_and(torch.max(reg_p[:,:,2:], dim=-1)[0] < reg_const_high, torch.min(reg_p[:,:,2:], dim=-1)[0] > reg_const_low), 1, 0)
+        return targets
     
     
     
@@ -226,7 +279,6 @@ class YOLOX(nn.Module):
     #   X - The inputs into the network (images to put bounding boxes on)
     #   y - The labels for each input (correct bounding boxes to place on image)
     def train(self, X, y):
-        from matplotlib import pyplot as plt
         # Make sure the input data are tensors
         if type(X) != torch.Tensor:
             X = torch.tensor(X, dtype=torch.float, device=cpu, requires_grad=False)
@@ -234,6 +286,10 @@ class YOLOX(nn.Module):
         # For each image, setup the bounding box labels so
         # we know which ones to count as positives
         reg_labels_init = self.setupPos(y)
+        
+        # Get the regression targets for each bounding
+        # box in the input image
+        reg_targets = self.getTargets(y, reg_labels_init)
         
         # Update the models `numEpochs` number of times
         for epoch in range(1, self.numEpochs+1):
@@ -251,6 +307,7 @@ class YOLOX(nn.Module):
                 if type(y_batches[-1]) == dict:
                     y_batches[-1] = [y_batches[-1]]
             reg_labels_init_batches = [torch.split(reg_labels_init[i][idx], self.batchSize) for i in range(0, len(reg_labels_init))]
+            reg_targets_batches = [torch.split(reg_targets[i][idx], self.batchSize) for i in range(0, len(reg_targets))]
             
             # The loss over all batches
             batchLoss = 0
@@ -261,6 +318,7 @@ class YOLOX(nn.Module):
                 X_b = X_batches[batch].to(self.device)
                 y_b = y_batches[batch]
                 reg_labels_b = [reg_labels_init_batches[i][batch] for i in range(0, len(reg_labels_init))]
+                reg_targets_b = [reg_targets_batches[i][batch] for i in range(0, len(reg_targets))]
                 
                 # Get a prediction of the bounding boxes on the input image
                 cls, reg, iou = self.forward(X_b)
@@ -280,17 +338,25 @@ class YOLOX(nn.Module):
                     reg_p = reg[p].permute(0, 2, 3, 1)
                     iou_p = iou[p].permute(0, 2, 3, 1)
                     
+                    # Send the regression targets through an exponential
+                    # function for this FPN layer
+                    reg_p = torch.exp(self.exp_params[p]*reg_p)
+                    
                     # Get the positive filtered labels for
                     # this FPN level
                     reg_labels = reg_labels_b[p]
                     
+                    # Get the regression targets for
+                    # this FPN level
+                    reg_targs = reg_targets_b[p]
+                    
                     # Denormalize/move the predicted bounding boxes
                     # so they are in the correct location
-                    pos = self.FPNPos[p]
-                    for x_mov in range(0, reg_p.shape[1]):
-                        for y_mov in range(0, reg_p.shape[2]):
-                            reg_p[:, x_mov, y_mov, 0] += pos[x_mov, y_mov, 0]
-                            reg_p[:, x_mov, y_mov, 1] += pos[x_mov, y_mov, 1]
+                    # pos = self.FPNPos[p]
+                    # for x_mov in range(0, reg_p.shape[1]):
+                    #     for y_mov in range(0, reg_p.shape[2]):
+                    #         reg_p[:, x_mov, y_mov, 0] += pos[x_mov, y_mov, 0]
+                    #         reg_p[:, x_mov, y_mov, 1] += pos[x_mov, y_mov, 1]
                     
                     
                     ### Positive Filtering
@@ -308,11 +374,6 @@ class YOLOX(nn.Module):
                     # The total GIoU loss
                     GIoU_loss = 0
                     
-                    # The indices of the best IoU losses (what
-                    # GT bounding box does this predict most
-                    # closely match?)
-                    bestIdx = []
-                    
                     # Flatten all predictions
                     cls_p = cls_p.reshape(cls_p.shape[0], cls_p.shape[1]*cls_p.shape[2], cls_p.shape[3])
                     reg_p = reg_p.reshape(reg_p.shape[0], reg_p.shape[1]*reg_p.shape[2], reg_p.shape[3])
@@ -320,41 +381,42 @@ class YOLOX(nn.Module):
                     
                     
                     
-                    # Each prediction finds the boundary box with the best IoU
-                    # which we will save to be used in the other functions.
+                    # Get the GIoU between each target bounding box
+                    # and each predicted bounding box
                     
                     # Iterate over all batch elements
                     for b_num in range(0, iou_p.shape[0]):
+                        # The predicted bounding boxes
                         bbox = reg_p[b_num]
-                        # Ensure no negative values
-                        #bbox = torch.clamp(bbox, 0, X.shape[-1])
-                        #bbox = torch.abs(reg_p[b_num])
-                        #bbox[torch.any(bbox > X.shape[-1])] = X.shape[-1]
-                        #bbox = X.shape[-1]/(1+torch.exp(-reg_p[b_num]))
-                        #bbox = reg_p[b_num, reg_labels[b_num] == 1]
                         
-                        # Get the GIoU of the bounding boxes
-                        GIoUVals = self.losses.GIoU(bbox.to(cpu), torch.tensor(y_b[b_num]['bbox'], dtype=float, requires_grad=False, device=cpu))
+                        # Indices for each predicted bounding box
+                        # ground truth value
+                        GTs = torch.clone(reg_targs[b_num])
                         
-                        # Get the indices and values for the best 
-                        # loss for each bounding box prediction
-                        # (basically what ground state bounding box
-                        # is closest to each predicted one?)
-                        vals, minIdx = torch.min(GIoUVals, dim=-1)
+                        # Get the GT bounding boxes as the corresponding
+                        # train value which is the boudning box coord
+                        # minus the pixel location of the prediction
+                        # (according to FCOS: x - x_0^i)
+                        #GT_bbox = torch.tensor(GTs[b_num]['bbox'], dtype=float, requires_grad=False, device=cpu)
+                        for i in range(0, int(math.sqrt(GTs.shape[0]))):
+                            for j in range(0, int(math.sqrt(GTs.shape[0]))):
+                                coord = self.FPNPos[p][i, j]
+                                loc = (i*int(math.sqrt(GTs.shape[0])))+j
+                                
+                                # Update the value if the GT box is not all -1s
+                                if GTs[loc][0] != -1:
+                                    GTs[loc][0] = coord[0] - GTs[loc][0]
+                                    GTs[loc][1] = coord[1] - GTs[loc][1]
+                        #GTs = [GTs[i]-self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2]) for i in range(bbox.shape[0])]
+                        #GT_bbox = torch.stack(GT_bbox)
                         
-                        # Save the indices for later use
-                        bestIdx.append(minIdx)
+                        GIoUVals = self.losses.GIoU(bbox.to(cpu), GTs)
                         
-                        # Get the min loss for each bounding
-                        # box prediction with a positive label
-                        # and sum it up
-                        GIoU_loss += torch.sum(vals[reg_labels[b_num] == 1])
+                        # Average the loss across all images
+                        GIoU_loss += GIoUVals.mean()
                     
                     # Average the total GIoU loss
                     GIoU_loss /= iou_p.shape[0]
-                    
-                    # Convert the min indices to a tensor
-                    bestIdx = torch.stack(bestIdx)
                     
                     
                     
@@ -445,9 +507,12 @@ class YOLOX(nn.Module):
                             y_2_I = torch.minimum(pred_bbox[:, 1]+pred_bbox[:, 3], box[:, 1]+box[:, 3])
                             I[torch.logical_or(x_2_I > x_1_I, y_2_I > y_1_I)] = 1
                         
-                        # Get the loss between the positive labelled batch elements
-                        #iouLoss += self.losses.BinaryCrossEntropy(obj.to(cpu), GTobj)
-                        iouLoss += self.losses.BinaryCrossEntropy(obj[reg_labels[b_num] == 1].to(cpu), GTobj[reg_labels[b_num] == 1])
+                        # Get the loss between the batch elements
+                        # Note: We don't just want the positively
+                        # labelled ones since we want the model to learn
+                        # both bad and good predictions
+                        iouLoss += self.losses.BinaryCrossEntropy(obj.to(cpu), GTobj)
+                        #iouLoss += self.losses.BinaryCrossEntropy(obj[reg_labels[b_num] == 1].to(cpu), GTobj[reg_labels[b_num] == 1])
                     
                     # Average the regression loss over the batch elements
                     iouLoss = iouLoss/len(y_b)
@@ -477,7 +542,7 @@ class YOLOX(nn.Module):
                     
                     # Get the final loss for this prediction
                     #finalLoss = FL# + regLoss + iouLoss
-                    finalLoss = GIoU_loss + iouLoss
+                    finalLoss = GIoU_loss
                     totalLoss += finalLoss
                 
                 
@@ -494,24 +559,31 @@ class YOLOX(nn.Module):
                 
                 # Clip the gradients so that the model doesn't
                 # go too crazy when updating its parameters
-                torch.nn.utils.clip_grad_norm_(self.parameters(), 2)
+                torch.nn.utils.clip_grad_norm_(self.parameters(), 1)
                 
                 # Step the optimizer
                 self.optimizer.step()
-                
-                # Step the learning rate optimizer after the warmup steps
-                if epoch > self.warmupEpochs:
-                    self.scheduler.step()
                 
                 # Zero the gradients
                 self.optimizer.zero_grad()
                 
                 # Update the batch loss
                 batchLoss += totalLoss.cpu().detach().numpy().item()
-                
+            
+            # Convert the printed boundary boxes to their proper form
+            print_boxes = reg_p[2]
+            for bbox in range(print_boxes.shape[0]):
+                print_boxes[bbox, 0] = self.strides[-1]/2 + print_boxes[bbox, 0]*self.strides[-1]
+                print_boxes[bbox, 1] = self.strides[-1]/2 + print_boxes[bbox, 1]*self.strides[-1]
+            
             print(f"Step #{epoch}      Total Batch Loss: {batchLoss}")
-            print(reg_p[2][reg_labels[0] == 1][:10])
-            print(iou_p[2][reg_labels[0] == 1][:10])
+            print(print_boxes[reg_labels[2] == 1][:10])
+            print(reg_targs[2][reg_labels[2] == 1][:10])
+            print(iou_p[2][reg_labels[2] == 1][:10])
+            
+            # Step the learning rate scheduler after the warmup steps
+            if epoch > self.warmupEpochs:
+                self.scheduler.step()
         
         return 0
         

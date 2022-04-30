@@ -2,201 +2,234 @@ import torch
 from torch import nn
 
 
+class conv(nn.Module):
+    # A single convolution layer used by Darknet53
+    def __init__(self, in_chan, out_chan, kernel_size=3, stride=1, padding=1):
+        super(conv, self).__init__()
+        
+        self.block = nn.Sequential(
+            nn.Conv2d(in_chan, out_chan, kernel_size, stride, padding, bias=False),
+            nn.BatchNorm2d(out_chan),
+            nn.ReLU(),
+        )
+    
+    def forward(self, X):
+        return self.block(X)
+
+
+
+class residual(nn.Module):
+    # A residual block containing a 1x1 and a 3x3 convolution
+    def __init__(self, in_chan):
+        super(residual, self).__init__()
+        
+        self.block = nn.Sequential(
+            conv(in_chan, in_chan//2, kernel_size=1, padding=0),
+            conv(in_chan//2, in_chan, kernel_size=3)
+        )
+    
+    def forward(self, X):
+        res = X
+        
+        X_new = self.block(X)
+        
+        return X_new + X
+
+
+
+
 class Darknet53(nn.Module):
-    # Initialize the mode
+    # Initialize the model
     # Inputs:
     #   device - Device to put the network on
-    #   inChanSize - The number of input channels (3 for RGB)
-    def __init__(self, device, inChanSize=3):
+    #   numClasses - Number of classes to predict
+    #   inChanSize - The initial number of input channels (3 for RGB)
+    def __init__(self, device, numClasses, inChanSize=3):
         super(Darknet53, self).__init__()
         
         ### Darknet blocks
         self.block1 = nn.Sequential(
-            nn.Conv2d(inChanSize, 32, kernel_size=3, padding=1),
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(64),
-            nn.LeakyReLU(),
+            conv(inChanSize, 32, kernel_size=3),
+            conv(32, 64, kernel_size=3, stride=2),
         ).to(device)
+        self.res1 = residual(64).to(device)
         self.block2 = nn.Sequential(
-            nn.Conv2d(64, 32, kernel_size=1),
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(),
-            nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.BatchNorm2d(64),
-            nn.LeakyReLU(),
+            conv(64, 128, kernel_size=3, stride=2)
+        ).to(device)
+        self.res2 = nn.Sequential(
+            residual(128),
+            residual(128),
         ).to(device)
         self.block3 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(),
+            conv(128, 256, stride=2)
         ).to(device)
-        self.block4 = [nn.Sequential(
-            nn.Conv2d(128, 64, kernel_size=1),
-            nn.BatchNorm2d(64),
-            nn.LeakyReLU(),
-            nn.Conv2d(64, 128, kernel_size=3, padding=1),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(),
-        ).to(device) for i in range(0, 2)]
+        self.res3 = nn.Sequential(
+            residual(256),
+            residual(256),
+            residual(256),
+            residual(256),
+            residual(256),
+            residual(256),
+            residual(256),
+            residual(256),
+        ).to(device)
+        self.block4 = nn.Sequential(
+            conv(256, 512, stride=2)
+        ).to(device)
+        self.res4 = nn.Sequential(
+            residual(512),
+            residual(512),
+            residual(512),
+            residual(512),
+            residual(512),
+            residual(512),
+            residual(512),
+            residual(512),
+        ).to(device)
         self.block5 = nn.Sequential(
-            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(),
+            conv(512, 1024, stride=2)
         ).to(device)
-        self.block6 = [nn.Sequential(
-            nn.Conv2d(256, 128, kernel_size=1),
-            nn.BatchNorm2d(128),
-            nn.LeakyReLU(),
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(),
-        ).to(device) for i in range(0, 8)]
-        self.block7 = nn.Sequential(
-            nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(),
+        self.res5 = nn.Sequential(
+            residual(1024),
+            residual(1024),
+            residual(1024),
+            residual(1024),
         ).to(device)
-        self.block8 = [nn.Sequential(
-            nn.Conv2d(512, 256, kernel_size=1),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(),
-            nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(),
-        ).to(device) for i in range(0, 8)]
-        self.block9 = nn.Sequential(
-            nn.Conv2d(512, 1024, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(1024),
-            nn.LeakyReLU(),
-        ).to(device)
-        self.block10 = [nn.Sequential(
-            nn.Conv2d(1024, 512, kernel_size=1),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(),
-            nn.Conv2d(512, 1024, kernel_size=3, padding=1),
-            nn.BatchNorm2d(1024),
-            nn.LeakyReLU(),
-        ).to(device) for i in range(0, 4)]
         self.globalPool = nn.AdaptiveAvgPool2d(1)
         self.connected = nn.Linear(1024, 1000, device=device)
         
         ### Output/prediction blocks
-        self.conv11_1 = nn.Sequential(
-            nn.Conv2d(1024, 512, 1, device=device),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-        )
-        self.upsample_1 = nn.Upsample(scale_factor=2)
-        self.conv_1 = nn.Sequential(
-            nn.Conv2d(1024, 512, kernel_size=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.Conv2d(512, 256, kernel_size=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.Conv2d(256, 512, kernel_size=3, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-            nn.Conv2d(512, 512, kernel_size=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
-        ).to(device=device)
         
-        self.conv11_2 = nn.Sequential(
-            nn.Conv2d(512, 256, 1, device=device),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+        # 1x1 block conversions
+        
+        # highest FPN level head (1024 channels)
+        self.head1_1x1 = nn.Sequential(
+            conv(1024, 256, kernel_size=1, padding=0),
+        ).to(device)
+        self.head1_cls = nn.Sequential(
+            conv(256, 256),
+            conv(256, 256),
+            conv(256, numClasses, kernel_size=1, padding=0),
+        ).to(device)
+        self.head1_reg_base = nn.Sequential(
+            conv(256, 256),
+            conv(256, 256),
+        ).to(device)
+        self.head1_reg = nn.Sequential(
+            conv(256, 4, kernel_size=1, padding=0)
+        ).to(device)
+        self.head1_IoU = nn.Sequential(
+            conv(256, 1, kernel_size=1, padding=0)
+        ).to(device)
+        
+        
+        
+        # Middle FPN level head (512 channels)
+        self.head2_1x1 = nn.Sequential(
+            conv(512, 256, kernel_size=1, padding=0),
+        ).to(device)
+        self.head2_cls = nn.Sequential(
+            conv(256, 256),
+            conv(256, 256),
+            conv(256, numClasses, kernel_size=1, padding=0),
         )
-        self.upsample_2 = nn.Upsample(scale_factor=2)
-        self.conv_2 = nn.Sequential(
-            nn.Conv2d(512, 256, kernel_size=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.Conv2d(256, 128, kernel_size=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
-            nn.Conv2d(128, 256, kernel_size=3, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.Conv2d(256, 256, kernel_size=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-        ).to(device=device)
+        self.head2_reg_base = nn.Sequential(
+            conv(256, 256),
+            conv(256, 256),
+        )
+        self.head2_reg = nn.Sequential(
+            conv(256, 4, kernel_size=1, padding=0)
+        )
+        self.head2_IoU = nn.Sequential(
+            conv(256, 1, kernel_size=1, padding=0)
+        )
+        
+        
+        # Lowest FPN level head (256 channels)
+        self.head3_1x1 = nn.Sequential(
+            conv(256, 256, kernel_size=1, padding=0),
+        ).to(device)
+        self.head3_cls = nn.Sequential(
+            conv(256, 256),
+            conv(256, 256),
+            conv(256, numClasses, kernel_size=1, padding=0),
+        )
+        self.head3_reg_base = nn.Sequential(
+            conv(256, 256),
+            conv(256, 256),
+        )
+        self.head3_reg = nn.Sequential(
+            conv(256, 4, kernel_size=1, padding=0)
+        )
+        self.head3_IoU = nn.Sequential(
+            conv(256, 1, kernel_size=1, padding=0)
+        )
         
     
     # Get a prediction from the model
     # Inputs:
     #   X - The inputs into the network (images to put bounding boxes on)
     # Outputs:
-    #   p1, p2, p3 - Predictions from different levels in the model 
+    #   p1, p2, p3 - Predictions from different levels in the model where
+    #                each prediction has 3 elements:
+    #                [class, regression, IoU]
     def forward(self, X):
         ### Send the inputs through the darknet backbone
-        
-        v = self.block1(X)
-        
-        res = torch.clone(v)
-        v = self.block2(v)+res
-        v = self.block3(v)
-        
-        res = torch.clone(v)
-        v = self.block4[0](v)+res
-        res = torch.clone(v)
-        v = self.block4[1](v)+res
-        
-        v = self.block5(v)
-        
-        for i in range(0, 8):
-            res = torch.clone(v)
-            v = self.block6[i](v)+res
+        X = self.block1(X)
+        X = self.res1(X)
+        X = self.block2(X)
+        X = self.res2(X)
+        X = self.block3(X)
+        X = self.res3(X)
             
-        ck1 = torch.clone(v)
+        # Save the first checkpoint (lowest prediction)
+        p3 = torch.clone(X)
         
-        v = self.block7(v)
+        X = self.block4(X)
+        X = self.res4(X)
         
-        for i in range(0, 8):
-            res = torch.clone(v)
-            v = self.block8[i](v)+res
+        # Save the second checkpoint (middle prediction)
+        p2 = torch.clone(X)
         
-        ck2 = torch.clone(v)
+        X = self.block5(X)
+        X = self.res5(X)
         
-        v = self.block9(v)
+        # Save the final checkpoint (highest prediction)
+        p1 = torch.clone(X)
         
-        for i in range(0, 4):
-            res = torch.clone(v)
-            v = self.block10[i](v)+res
-        
-        ck3 = torch.clone(v)
-        
-        v = torch.squeeze(self.globalPool(v))
-        
-        v = self.connected(v)
+        X = torch.squeeze(self.globalPool(X))
+        X = self.connected(X)
+    
+    
     
         ### Now send the three checkpoints through
-        ### convolutions and upsampling to get three predictions
+        ### the YOLO head to get the outputs
         
-        # The first prediction is the last checkpoint
-        p1 = torch.clone(ck3)
         
-        # Second prediction
-        v = self.conv11_1(ck3)
-        v = self.upsample_1(v)
-        v = torch.cat((v, ck2), dim=1)
-        v = self.conv_1(v)
-        p2 = torch.clone(v)
+        # Get the highest FPN level predictions (1024 channels)
+        p1 = self.head1_1x1(p1)
+        p1_cls = self.head1_cls(p1)
+        p1 = self.head1_reg_base(p1)
+        p1_reg = self.head1_reg(p1)
+        p1_IoU = self.head1_IoU(p1)
+        p1 = [p1_cls, p1_reg, p1_IoU]
         
-        # Third prediction
-        v = self.conv11_2(p2)
-        v = self.upsample_2(v)
-        v = torch.cat((v, ck1), dim=1)
-        v = self.conv_2(v)
-        p3 = v
+        
+        # Get the highest FPN level predictions (512 channels)
+        p2 = self.head2_1x1(p2)
+        p2_cls = self.head2_cls(p2)
+        p2 = self.head2_reg_base(p2)
+        p2_reg = self.head2_reg(p2)
+        p2_IoU = self.head2_IoU(p2)
+        p2 = [p2_cls, p2_reg, p2_IoU]
+        
+        
+        # Get the highest FPN level predictions (1024 channels)
+        p3 = self.head3_1x1(p3)
+        p3_cls = self.head3_cls(p3)
+        p3 = self.head3_reg_base(p3)
+        p3_reg = self.head3_reg(p3)
+        p3_IoU = self.head3_IoU(p3)
+        p3 = [p3_cls, p3_reg, p3_IoU]
         
         return p1,p2,p3

@@ -103,8 +103,13 @@ class LossFunctions():
     #   A tensor where each value is the loss for that
     #   image (numImages)
     def GIoU(self, pred, GT):
+        # If either the predictions or ground truth values
+        # are empty, return 0
+        if pred.shape[0] == 0 or GT.shape[0] == 0:
+            return 0
+        
         # Convert the boxes to the correct form:
-        #   1: x_1 - The lower/let-most x value
+        #   1: x_1 - The lower/left-most x value
         #   2: y_1 - The lower/upper-most y value
         #   3: x_2 - The higher/right-most x value
         #   4: y_2 - The higher/bottom-most y value

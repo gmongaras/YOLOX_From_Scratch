@@ -42,6 +42,7 @@ def main():
     # Loss Function Hyperparameters
     FL_alpha = 4            # The focal loss alpha parameter
     FL_gamma = 2            # The focal loss gamma paramter
+    reg_weight = 0.5        # Percent to weight regression loss over other loss
     
     
     # COCO dataset parameters
@@ -215,7 +216,7 @@ def main():
     
     ### Model Training
     torch.autograd.set_detect_anomaly(True)
-    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts)
+    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight)
     model.train(imgs, anns)
     
     

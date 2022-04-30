@@ -83,24 +83,52 @@ class Darknet53(nn.Module):
         self.connected = nn.Linear(1024, 1000, device=device)
         
         ### Output/prediction blocks
-        self.conv11_1 = nn.Conv2d(1024, 512, 1, device=device)
+        self.conv11_1 = nn.Sequential(
+            nn.Conv2d(1024, 512, 1, device=device),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
+        )
         self.upsample_1 = nn.Upsample(scale_factor=2)
         self.conv_1 = nn.Sequential(
             nn.Conv2d(1024, 512, kernel_size=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
             nn.Conv2d(512, 256, kernel_size=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
             nn.Conv2d(256, 512, kernel_size=3, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
             nn.Conv2d(512, 512, kernel_size=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(),
         ).to(device=device)
         
-        self.conv11_2 = nn.Conv2d(512, 256, 1, device=device)
+        self.conv11_2 = nn.Sequential(
+            nn.Conv2d(512, 256, 1, device=device),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
+        )
         self.upsample_2 = nn.Upsample(scale_factor=2)
         self.conv_2 = nn.Sequential(
             nn.Conv2d(512, 256, kernel_size=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
             nn.Conv2d(256, 128, kernel_size=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(),
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
             nn.Conv2d(256, 256, kernel_size=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(),
         ).to(device=device)
         
     

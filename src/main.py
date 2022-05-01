@@ -42,7 +42,7 @@ def main():
     # Loss Function Hyperparameters
     FL_alpha = 4            # The focal loss alpha parameter
     FL_gamma = 2            # The focal loss gamma paramter
-    reg_weight = 0.5        # Percent to weight regression loss over other loss
+    reg_weight = 5.0        # Percent to weight regression loss over other loss
     
     
     # COCO dataset parameters

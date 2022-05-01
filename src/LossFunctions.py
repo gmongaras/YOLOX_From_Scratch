@@ -36,9 +36,7 @@ class LossFunctions():
         p_t = torch.where(p_t > 0.999999, p_t-0.000001, p_t)
         
         # Return the loss value
-        return torch.mean((1/z.shape[0])*torch.sum(
-            -self.FL_alpha*((1-p_t)**self.FL_gamma)*torch.log(p_t)
-            , dim=-1))
+        return torch.sum(-self.FL_alpha*((1-p_t)**self.FL_gamma)*torch.log(p_t))
         
         # Compute the loss and return it
         return -((y+1)/2)*self.FL_alpha*((1-p)**self.FL_gamma)*torch.log(p) - \

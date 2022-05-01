@@ -291,14 +291,8 @@ class YOLOX(nn.Module):
             
             # Randomly split the data into batches
             X_batches = torch.split(X[idx], self.batchSize)
-            y_temp = np.array(y, dtype=object)[idx.cpu().detach().numpy()].tolist()
-            y_batches = [y_temp[self.batchSize*i:self.batchSize*(i+1)] for i in range(0, (X.shape[0]//self.batchSize))]
-            if y_batches == []:
-                y_batches = [y]
-            else:
-                y_batches += y_temp[self.batchSize*(X.shape[0]//self.batchSize):]
-                if type(y_batches[-1]) == dict:
-                    y_batches[-1] = [y_batches[-1]]
+            y_tmp = np.array(y, dtype=object)[idx]
+            y_batches = np.array([y_tmp[i*self.batchSize:(i+1)*self.batchSize] for i in range(y_tmp.shape[0]//self.batchSize)] + [y_tmp[(y_tmp.shape[0]//self.batchSize)*self.batchSize:]], dtype=object)
             reg_labels_init_batches = [torch.split(reg_labels_init[i][idx], self.batchSize) for i in range(0, len(reg_labels_init))]
             reg_targets_batches = [torch.split(reg_targets[i][idx], self.batchSize) for i in range(0, len(reg_targets))]
             
@@ -445,25 +439,34 @@ class YOLOX(nn.Module):
                     
                     ### Class Loss
                     
-                    # Predict class in bounding box, not in cell ...
-                    # Use Sim OTA
-                    #
-                    
                     # Get the ground truth value for each prediction as a one-hot vector
                     GT = torch.zeros(list(cls_p.shape[:-1])+[self.numCats+1])
                     
                     # Iterate over all images
+                    temp = self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2])
                     for b_num in range(0, cls_p.shape[0]): # Iterate over all batch elements
                         # Iterate over all FPN positions
                         for pos in range(0, self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1]):
                             # Current coords mapping back to the original image
-                            coord = self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2])[pos]
+                            coord = temp[pos]
                             
-                            # Store the GT value as a 1 in the one-hot vector
-                            GT[b_num, pos][y_b[b_num]['pix_cls'][coord[0], coord[1]]] = 1
+                            # Is there a class other than the background class (0) in
+                            # a 3x3 area?
+                            first = y_b[b_num]['pix_cls'][coord[0], coord[1]-1:coord[1]+2]
+                            second = y_b[b_num]['pix_cls'][coord[0]+1, coord[1]-1:coord[1]+2]
+                            third = y_b[b_num]['pix_cls'][coord[0]-1, coord[1]-1:coord[1]+2]
+                            
+                            # Get the possible classes
+                            pos_cls = torch.cat((first, second, third))
+                            
+                            # Pick the highest class and store it as a 1 in a one-hot vector
+                            GT[b_num, pos][torch.max(pos_cls)] = 1
                     
                     # Send the data through the Focal Loss function
-                    cls_Loss = self.losses.FocalLoss(cls_p.to(cpu), GT)
+                    #cls_Loss = self.losses.FocalLoss(cls_p.to(cpu), GT)
+                    
+                    # Send the positive data through the BCE loss function
+                    cls_Loss = nn.BCEWithLogitsLoss(reduction='sum')(cls_p.to(cpu)[reg_labels != 0], GT[reg_labels != 0])
                     
                     
                     
@@ -542,8 +545,14 @@ class YOLOX(nn.Module):
             print(print_boxes[reg_labels[2] == 1][:2])
             print(reg_targs[2][reg_labels[2] == 1][:2])
             
+            cls_GT = []
+            for i in self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[-1]):
+                cls_GT.append(y_b[2]['pix_cls'][i[0], i[1]])
+            cls_GT = torch.stack(cls_GT)
+            
             print("Cls:")
             print(torch.argmax(cls_p[2][reg_labels[2] == 1][:2], dim=1))
+            print(cls_GT[reg_labels[2] == 1][:2])
             
             print("Obj:")
             print(obj_p[2][reg_labels[2] == 1][:2])

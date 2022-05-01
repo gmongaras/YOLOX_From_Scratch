@@ -10,7 +10,7 @@ class conv(nn.Module):
         self.block = nn.Sequential(
             nn.Conv2d(in_chan, out_chan, kernel_size, stride, padding, bias=False),
             nn.BatchNorm2d(out_chan),
-            nn.ReLU(),
+            nn.LeakyReLU(),
         )
     
     def forward(self, X):

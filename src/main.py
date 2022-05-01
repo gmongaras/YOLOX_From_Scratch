@@ -200,13 +200,13 @@ def main():
                         pix_obj[:][w][h] = 1
         
         # Encode the classes as a tensor
-        pix_cls = torch.tensor(pix_cls, dtype=int, device=cpu)
+        pix_cls = torch.tensor(pix_cls, dtype=int, device=cpu, requires_grad=False)
         
         # One hot encode the pixel classes
         #pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int, device=cpu), len(seq_category_Ids.values()))
         
         # Encode the objectiveness as a tensor
-        pix_obj = torch.tensor(pix_obj, dtype=int, device=cpu)
+        pix_obj = torch.tensor(pix_obj, dtype=int, device=cpu, requires_grad=False)
         
         anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls, "pix_obj":pix_obj})
     print("Annotations Loaded!\n")

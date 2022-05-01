@@ -109,17 +109,17 @@ class Darknet53(nn.Module):
         self.head1_cls = nn.Sequential(
             conv(256, 256),
             conv(256, 256),
-            conv(256, numClasses, kernel_size=1, padding=0),
+            nn.Conv2d(256, numClasses, kernel_size=1, padding=0, bias=False)
         ).to(device)
         self.head1_reg_base = nn.Sequential(
             conv(256, 256),
             conv(256, 256),
         ).to(device)
         self.head1_reg = nn.Sequential(
-            conv(256, 4, kernel_size=1, padding=0)
+            nn.Conv2d(256, 4, kernel_size=1, padding=0, bias=False)
         ).to(device)
         self.head1_IoU = nn.Sequential(
-            conv(256, 1, kernel_size=1, padding=0)
+            nn.Conv2d(256, 1, kernel_size=1, padding=0, bias=False)
         ).to(device)
         
         
@@ -131,18 +131,18 @@ class Darknet53(nn.Module):
         self.head2_cls = nn.Sequential(
             conv(256, 256),
             conv(256, 256),
-            conv(256, numClasses, kernel_size=1, padding=0),
-        )
+            nn.Conv2d(256, numClasses, kernel_size=1, padding=0, bias=False)
+        ).to(device)
         self.head2_reg_base = nn.Sequential(
             conv(256, 256),
             conv(256, 256),
-        )
+        ).to(device)
         self.head2_reg = nn.Sequential(
-            conv(256, 4, kernel_size=1, padding=0)
-        )
+            nn.Conv2d(256, 4, kernel_size=1, padding=0, bias=False)
+        ).to(device)
         self.head2_IoU = nn.Sequential(
-            conv(256, 1, kernel_size=1, padding=0)
-        )
+            nn.Conv2d(256, 1, kernel_size=1, padding=0, bias=False)
+        ).to(device)
         
         
         # Lowest FPN level head (256 channels)
@@ -152,18 +152,18 @@ class Darknet53(nn.Module):
         self.head3_cls = nn.Sequential(
             conv(256, 256),
             conv(256, 256),
-            conv(256, numClasses, kernel_size=1, padding=0),
-        )
+            nn.Conv2d(256, numClasses, kernel_size=1, padding=0, bias=False)
+        ).to(device)
         self.head3_reg_base = nn.Sequential(
             conv(256, 256),
             conv(256, 256),
-        )
+        ).to(device)
         self.head3_reg = nn.Sequential(
-            conv(256, 4, kernel_size=1, padding=0)
-        )
+            nn.Conv2d(256, 4, kernel_size=1, padding=0, bias=False)
+        ).to(device)
         self.head3_IoU = nn.Sequential(
-            conv(256, 1, kernel_size=1, padding=0)
-        )
+            nn.Conv2d(256, 1, kernel_size=1, padding=0, bias=False)
+        ).to(device)
         
     
     # Get a prediction from the model

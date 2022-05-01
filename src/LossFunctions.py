@@ -83,7 +83,7 @@ class LossFunctions():
     def CrossEntropy(self, y_hat, y):
         # Ensure no Nan values
         y_hat = torch.where(y_hat < 0.000001, y_hat+0.000001, y_hat)
-        #y_hat = torch.where(y_hat > 0.999999, y_hat-0.000001, y_hat)
+        y_hat = torch.where(y_hat > 0.999999, y_hat-0.000001, y_hat)
         
         # Return the loss value
         return -torch.mean(y*torch.log(y_hat))

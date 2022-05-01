@@ -547,7 +547,11 @@ class YOLOX(nn.Module):
             
             cls_GT = []
             for i in self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[-1]):
-                cls_GT.append(y_b[2]['pix_cls'][i[0], i[1]])
+                first = y_b[2]['pix_cls'][i[0], i[1]-1:i[1]+2]
+                second = y_b[2]['pix_cls'][i[0]-1, i[1]-1:i[1]+2]
+                third = y_b[2]['pix_cls'][i[0]+1, i[1]-1:i[1]+2]
+                best = torch.cat((first, second, third)).max()
+                cls_GT.append(best)
             cls_GT = torch.stack(cls_GT)
             
             print("Cls:")

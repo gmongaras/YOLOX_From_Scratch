@@ -466,7 +466,8 @@ class YOLOX(nn.Module):
                     #cls_Loss = self.losses.FocalLoss(cls_p.to(cpu), GT)
                     
                     # Send the positive data through the BCE loss function
-                    cls_Loss = nn.BCEWithLogitsLoss(reduction='sum')(cls_p.to(cpu)[reg_labels != 0], GT[reg_labels != 0])
+                    cls_Loss = self.losses.BinaryCrossEntropy(cls_p.to(cpu), GT)
+                    #cls_Loss = nn.BCEWithLogitsLoss(reduction='sum')(cls_p.to(cpu)[reg_labels != 0], GT[reg_labels != 0])
                     
                     
                     

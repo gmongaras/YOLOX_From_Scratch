@@ -52,6 +52,8 @@ class LossFunctions():
     # Outputs:
     #   The Binary Cross Entropy of the input tensor
     def BinaryCrossEntropy(self, y_hat, y):
+        return torch.nn.BCEWithLogitsLoss(reduction='sum')(y_hat, y)
+    
         # If the input is an empty tensor, return 0
         if y_hat.size() == torch.Size([0]) or y.size() == torch.Size([0]):
             return 0

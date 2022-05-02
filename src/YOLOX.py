@@ -379,9 +379,6 @@ class YOLOX(nn.Module):
                     # The total GIoU loss
                     GIoU_loss = 0
                     
-                    # Saved GIoU loss values to be used in the objectiveness loss
-                    saved_GIoU = []
-                    
                     # Get the GIoU between each target bounding box
                     # and each predicted bounding box
                     
@@ -427,14 +424,10 @@ class YOLOX(nn.Module):
                         # If there are no positive targets for this image,
                         # skip this iteration
                         if bbox[reg_labels[b_num] != 0].shape[0] == 0:
-                            saved_GIoU.append(torch.tensor([]))
                             continue
                         
                         # Get the GIoU Loss and Value for the positive targets
-                        GIoULoss, GIoU = self.losses.GIoU(bbox[reg_labels[b_num] != 0].to(cpu), GTs[reg_labels[b_num] != 0])
-                        
-                        # Save the GIoU value to be used in the objectiveness loss
-                        saved_GIoU.append(GIoU)
+                        GIoULoss, _ = self.losses.GIoU(bbox[reg_labels[b_num] != 0].to(cpu), GTs[reg_labels[b_num] != 0])
                         
                         # Sum the loss across all images and save it
                         GIoU_loss += GIoULoss.sum()
@@ -547,7 +540,6 @@ class YOLOX(nn.Module):
                     ### Final Loss ###
                     
                     # Get the final loss for this prediction
-                    #finalLoss = FL# + regLoss + iouLoss
                     N_pos = torch.count_nonzero(reg_labels)
                     finalLoss = (1/N_pos)*cls_Loss + self.reg_weight*((1/N_pos)*GIoU_loss) + (1/N_pos)*obj_Loss
                     #finalLoss = (1/N_pos)*obj_Loss
@@ -618,4 +610,9 @@ class YOLOX(nn.Module):
     def predict(self):
         #https://medium.com/swlh/fcos-walkthrough-the-fully-convolutional-approach-to-object-detection-777f614268c
         # Look in inference mode
+
+
+        # Note: Send cls and obj output through sigmoid, but not the reg outputs
+
+
         return 1

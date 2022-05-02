@@ -382,6 +382,9 @@ class YOLOX(nn.Module):
                     # The total GIoU loss
                     GIoU_loss = 0
                     
+                    # Saved GIoU loss values to be used in the objectiveness loss
+                    saved_GIoU = []
+                    
                     # Get the GIoU between each target bounding box
                     # and each predicted bounding box
                     
@@ -427,13 +430,17 @@ class YOLOX(nn.Module):
                         # If there are no positive targets for this image,
                         # skip this iteration
                         if bbox[reg_labels[b_num] != 0].shape[0] == 0:
+                            saved_GIoU.append(torch.tensor([]))
                             continue
                         
-                        # Get the GIoU Values for the positive targets
-                        GIoUVals = self.losses.GIoU(bbox[reg_labels[b_num] != 0].to(cpu), GTs[reg_labels[b_num] != 0])
+                        # Get the GIoU Loss and Value for the positive targets
+                        GIoULoss, GIoU = self.losses.GIoU(bbox[reg_labels[b_num] != 0].to(cpu), GTs[reg_labels[b_num] != 0])
                         
-                        # Average the loss across all images
-                        GIoU_loss += GIoUVals.sum()
+                        # Save the GIoU value to be used in the objectiveness loss
+                        saved_GIoU.append(GIoU)
+                        
+                        # Sum the loss across all images and save it
+                        GIoU_loss += GIoULoss.sum()
                     
                     
                     
@@ -466,7 +473,7 @@ class YOLOX(nn.Module):
                     #cls_Loss = self.losses.FocalLoss(cls_p.to(cpu), GT)
                     
                     # Send the positive data through the BCE loss function
-                    cls_Loss = self.losses.BinaryCrossEntropy(cls_p.to(cpu), GT)
+                    cls_Loss = self.losses.BinaryCrossEntropy(cls_p[reg_labels != 0].to(cpu), GT[reg_labels != 0])
                     #cls_Loss = nn.BCEWithLogitsLoss(reduction='sum')(cls_p.to(cpu)[reg_labels != 0], GT[reg_labels != 0])
                     
                     
@@ -481,18 +488,56 @@ class YOLOX(nn.Module):
                     # Iterate over all elements in the batch
                     for b_num in range(0, len(y_b)):
                         ## Get a tensor of all the ground truth objective values.
-                        ## Basically, this is a 1 if an object is in the box and
-                        ## a 0 otherwise
+                        ## Basically, this value is the GIoU value for each
+                        ## predicted bounding box
                         
                         # Get the current IoU (objctiveness) predictions
                         obj = torch.squeeze(obj_p[b_num])
+                        
+                        # Get all ground truth bounding boxes in this image
+                        GT_bbox = torch.tensor(y_b[b_num]["bbox"], device=cpu, requires_grad=False)
+                        
+                        # The best GIoU values for each predicted bounding box
+                        best_GIoU = torch.negative(torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float))
+                        
+                        # Iterate over all GT boxes
+                        for box in GT_bbox:
+                            # Broadcast the GT box
+                            box = torch.broadcast_to(box, reg_p[b_num].shape).to(cpu)
+                            
+                            # Get the predicted bounding boxes. Note, these have
+                            # already been projected to the original image
+                            pred_bbox = reg_p[b_num].to(cpu)
+                            
+                            # Get the GIoU between the predicted boudning boxes
+                            # and the current bounding box in iteration
+                            _, all_GIoU = self.losses.GIoU(pred_bbox, box)
+                            
+                            # Get the max GIoU loss for each bounding box
+                            # between the new GIoU values and the current
+                            # saved ones. Save the max values
+                            best_GIoU = torch.maximum(best_GIoU, all_GIoU)
                         
                         # Get the loss between the batch elements
                         # Note: We don't just want the positively
                         # labelled ones since we want the model to learn
                         # both bad and good predictions
-                        obj_Loss += self.losses.BinaryCrossEntropy(obj.to(cpu), obj_labels[b_num])
+                        obj_Loss += self.losses.BinaryCrossEntropy(obj.to(cpu), best_GIoU)
                         #iouLoss += self.losses.BinaryCrossEntropy(obj[reg_labels[b_num] == 1].to(cpu), GTobj[reg_labels[b_num] == 1])
+                        
+                        
+                        
+                        
+                        # # Get the current IoU (objctiveness) predictions
+                        # # for all positive labels
+                        # obj_sub = torch.squeeze(obj_p[b_num])[reg_labels[b_num] != 0].to(cpu)
+                        
+                        # # If there are no predictions, skip this iteration
+                        # if obj_sub.shape[0] == 0:
+                        #     continue
+                        
+                        # # Get the objectiveness loss for this image
+                        # obj_Loss += self.losses.BinaryCrossEntropy(obj_sub, saved_GIoU[b_num])
                     
                     
                     
@@ -506,7 +551,7 @@ class YOLOX(nn.Module):
                     #finalLoss = FL# + regLoss + iouLoss
                     N_pos = torch.count_nonzero(reg_labels)
                     finalLoss = (1/N_pos)*cls_Loss + self.reg_weight*((1/N_pos)*GIoU_loss) + (1/N_pos)*obj_Loss
-                    #finalLoss = (1/N_pos)*cls_Loss + self.reg_weight*((1/N_pos)*GIoU_loss)
+                    #finalLoss = (1/N_pos)*obj_Loss
                     totalLoss += finalLoss
                 
                 

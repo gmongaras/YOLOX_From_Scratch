@@ -100,8 +100,10 @@ class LossFunctions():
     #       as the predicted bounding boxes
     #   The tensors have shape: (numImages, 4)
     # Outputs:
-    #   A tensor where each value is the loss for that
-    #   image (numImages)
+    #   lossVals - A tensor where each value is the loss for that
+    #               image (numImages)
+    #   GIoU - A tensor where each value is the GIoU value for that
+    #               image (numImages). Note, this is not the loss value
     def GIoU(self, pred, GT):
         # If either the predictions or ground truth values
         # are empty, return 0
@@ -146,7 +148,7 @@ class LossFunctions():
         y_1_I = torch.maximum(y_1_p, y_1_g)
         y_2_I = torch.minimum(y_2_p, y_2_g)
         I = torch.zeros(x_1_I.shape)
-        I[torch.any(torch.logical_or(x_2_I > x_1_I, y_2_I > y_1_I))] = \
+        I[torch.any(torch.logical_and(x_2_I > x_1_I, y_2_I > y_1_I))] = \
             (x_2_I - x_1_I) * (y_2_I - y_1_I)
         
         # 5: Find coordinate of smallest enclosing box B_c
@@ -166,9 +168,8 @@ class LossFunctions():
         GIoU = IoU - ((A_c - U) / A_c)
         
         # 9: Save the values as loss
-        # (we use 1 - GIoI as we want to minimize the GIoU)
-        # (we also take the absolute value so it's not negative)
+        # (we use 1 - GIoU as we want to minimize the GIoU)
         lossVals = 1 - GIoU
         
         # Create a tensor of the losses and return it
-        return lossVals
+        return lossVals, GIoU

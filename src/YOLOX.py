@@ -338,9 +338,6 @@ class YOLOX(nn.Module):
                     # of the image
                     reg_p = self.regDecode(reg_p, p)
                     
-                    # Ensure the objectiveness is between 0 and 1
-                    obj_p = torch.sigmoid(obj_p)
-                    
                     # Get the positive filtered labels for
                     # this FPN level. These will change based
                     # on how good each prediction is
@@ -491,7 +488,7 @@ class YOLOX(nn.Module):
                         ## Basically, this value is the GIoU value for each
                         ## predicted bounding box
                         
-                        # Get the current IoU (objctiveness) predictions
+                        # Get the current objctiveness predictions
                         obj = torch.squeeze(obj_p[b_num])
                         
                         # Don't calculate the gradient when finding the GT values

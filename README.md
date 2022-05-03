@@ -2,6 +2,13 @@
 Attempting to build YOLOX from scratch
 
 
+# TODO
+- Add L1 Loss (found in YoloX source code)
+- Model crashes after about 150 iters on 128 data points. Is this fixed with obj loss fix?
+- Inference
+- SimOTA for label assignments
+- Data Augmentation (Mosaic and MixUp). Don't use these augmentations for the last 15 iterations.
+
 
 # Data
 I used the COCO dataset (2017 test and 2017 val):

@@ -1,3 +1,4 @@
+from sympy import re
 from YOLOX import YOLOX
 from pycocotools.coco import COCO
 import numpy as np
@@ -7,15 +8,12 @@ import random
 import torch
 import math
 from matplotlib import pyplot as plt
+import matplotlib.patches as patches
 import os
+import json
 
 
 
-
-device = torch.device('cpu')
-if torch.cuda.is_available():
-   device = torch.device('cuda')
-cpu = torch.device('cpu')
 
 
 
@@ -26,8 +24,8 @@ cpu = torch.device('cpu')
 def predict():
     # Model Hyperparameters
     k = 10                  # The max number of annotations per image
+    device = "gpu"          # The device to train the model with (cpu or gpu)
     numEpochs = 300         # The number of epochs to train the model for
-    batchSize = 128         # The size of each minibatch
     warmupEpochs = 5        # Number of warmup epochs to train the model for
     lr_init = 0.01          # Initial learning rate
     weightDecay = 0.0005    # Amount to decay weights over time
@@ -39,133 +37,135 @@ def predict():
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
     
+    
+    # Training Paramters
+    dataDir = "../testData" # Directory to load data from
+    batchSize = 1           # The size of each minibatch of data (use 0
+                            # to use a single batch)
+    
+    
+    # Model Loading Parameters
+    loadDir = "../models"       # The directory to load the model from
+    paramLoadName = "modelParams - test.json"   # File to load the model paramters from
+    loadName = "model - test.pkl"  # Filename to load the model from
+    
+    
     # Loss Function Hyperparameters
     FL_alpha = 4            # The focal loss alpha parameter
     FL_gamma = 2            # The focal loss gamma paramter
     reg_weight = 5.0        # Percent to weight regression loss over other loss
     
     
-    # COCO dataset parameters
-    dataDir = "../coco"     # The location of the COCO dataset
-    dataType = "val2017"    # The type of data being used in the COCO dataset
-    annFile = '{}/annotations/instances_{}.json'.format(dataDir,dataType)
-    categories = ["person", "dog", "cat"]   # The categories to load in
-    numToLoad = 10           # Max Number of data images to load in (use -1 for all)
-    resize = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
+    
+    # Putting device on GPU or CPU
+    if device.lower() == "gpu":
+        if torch.cuda.is_available():
+            device = torch.device('cuda:0')
+        else:
+            print("GPU not available, defaulting to CPU\n")
+            device = torch.device('cpu')
+    else:
+        device = torch.device('cpu')
+    cpu = torch.device('cpu')
     
     
-    # Ensure the number of categories is equal to the list
-    # of categories
-    assert numCats == len(categories), "Number of categories (numCats) must be equal to the length of the categories list (categories)"
     
     
     
-    ### Data Loading
+    ### Data Loading ###
     
-    # Initialize the COCO data
-    coco=COCO(annFile)
+    # Ensure the directory exists
+    assert os.path.isdir(loadDir), f"Load directory {loadDir} does not exist."
     
-    # Get the image data and annotations
-    img_data = []
-    category_Ids = dict()
-    ann_data = dict()
-    seen = []
-    for c in categories:
-        # Get all images in the category c
-        catIds = coco.getCatIds(catNms=[c])
-        imgIds = coco.getImgIds(catIds=catIds)
-        sub_img_data = coco.loadImgs(imgIds)
+    # Ensure the parameter file exists
+    assert os.path.isfile(os.path.join(loadDir, paramLoadName)), f"Load file {os.path.join(loadDir, paramLoadName)} does not exist."
+    
+    # Load in the model parameters
+    with open(os.path.join(loadDir, paramLoadName), "r", encoding='utf-8') as f:
+        data = json.load(f)
         
-        # Save the category ids
-        category_Ids[c] = catIds[0]
-        
-        # Get the new images
-        notSeen = []
-        for i in sub_img_data:
-            if i['id'] not in seen:
-                seen.append(i['id'])
-                notSeen.append(i)
-        img_data += notSeen
-        
-        # Save the annotations for the new images
-        for i in notSeen:
-            ann_data[i['id']] = coco.loadAnns(coco.getAnnIds(imgIds=i['id'], iscrowd=None))
-    
-    # Get a subset if requested
-    if numToLoad > 0:
-        img_data = img_data[:numToLoad]
+    # Save the loaded data as model paramters
+    k = data['k']
+    ImgDim = data['ImgDim']
+    numCats = data['numCats']
     
     
-    # Load in the actual images
+    # List to hold the images as tensors
     imgs = []
-    props = [] # Proportions to resize the images
-    padding = [] # Amount of padding added to the image
-    print("\nLoading images...")
-    for img_d in img_data:
+    
+    # Iterate over all files in the directory
+    for file in os.listdir(dataDir):
         # Load in the image
-        img = io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_d["file_name"])
-        #img = io.imread(img_d['coco_url'])
+        img = io.imread(os.path.join(dataDir, file))
         
         # Resize the image
         img = Image.fromarray(img) # Convert to PIL object
         img = img.convert("RGB")   # Convert to RGB
-        prop = resize/(max(img.height, img.width)) # proportion to resize image
+        prop = ImgDim/(max(img.height, img.width)) # proportion to resize image
         new_h = round(img.height*prop)
         new_w = round(img.width*prop)
         img = img.resize((new_w, new_h))
-        #img.thumbnail((new_h, new_w), Image.ANTIALIAS) # Resize the image
         img = np.array(img)
         
         # Pad with zeros if needed
-        pad = [(resize-img.shape[0])-(resize-img.shape[0])//2, (resize-img.shape[1])-(resize-img.shape[1])//2]
-        img = np.pad(img, (((resize-img.shape[0])-(resize-img.shape[0])//2, ((resize-img.shape[0])//2)), ((resize-img.shape[1])-(resize-img.shape[1])//2, ((resize-img.shape[1])//2)), (0, 0)), mode='constant')
+        img = np.pad(img, (((ImgDim-img.shape[0])-(ImgDim-img.shape[0])//2, ((ImgDim-img.shape[0])//2)), ((ImgDim-img.shape[1])-(ImgDim-img.shape[1])//2, ((ImgDim-img.shape[1])//2)), (0, 0)), mode='constant')
         
-        # Save the array, the resize proportion, and the padding
-        imgs.append(img)
-        props.append(prop)
-        padding.append(pad)
-    imgs = torch.tensor(np.array(imgs), dtype=torch.float32, requires_grad=False, device=cpu)
+        # Save the images as a tensor
+        imgs.append(torch.tensor(img, dtype=torch.float, requires_grad=False, device=device))
     
-    # Correction so that channels are first, not last
-    if imgs.shape[-1] == 3:
-        imgs = torch.reshape(imgs, (imgs.shape[0], 3, imgs.shape[1], imgs.shape[2]))
-    print("Images Loaded")
-    
-    
-    # Save the category ids as sequential numbers instead of
-    # the default number given to that category
-    seq_category_Ids = {i:category_Ids[i] for i in category_Ids.keys()}
-    seq_category_Ids["Background"] = 0
-    seq_category_Ids_rev = {seq_category_Ids[i]:i for i in seq_category_Ids.keys()}
+    # Save all the images as a single tensor
+    imgs = torch.stack(imgs).to(device)
     
     
     
     
-    ### Model Predicting ###
-    torch.autograd.set_detect_anomaly(True)
-    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight)
-    model.predict(imgs, anns)
+    ### Model Training ###
+    
+    # We don't care about the gradients
+    with torch.no_grad():
+        
+        # Create the model
+        model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight)
+        
+        # Load the model if requested
+        model.loadModel(loadDir, loadName, paramLoadName)
+        
+        # Get the predictions from the model
+        cls_p, reg_p, obj_p = model.predict(imgs, batchSize)
     
     
     
+    # Convert the images to a numpy array
+    imgs = imgs.cpu().numpy()
     
-    #### Model Testing
-    print()
-    
-    # To get output, use torchvision.ops.nms
-    
-    # Make inferences using
-    # with torch.no_grad():
-    #    make_inference()
-    
-    
-    
-    ### Model Saving
-    
-    # Save model in pkl file
-    
-    # Save model parameters (like the layers sizes and such) to load
-    # in for inferring
+    # Iterate over all images
+    for img_num in range(0, imgs.shape[0]):
+        # Get the image as a Pillow object
+        img = Image.fromarray(np.uint8(imgs[img_num]))
+        
+        # Create the figure and subplots
+        fig, ax = plt.subplots()
+        
+        # Display the image
+        ax.imshow(img)
+        
+        # Iterate over all bounding boxes for this image
+        for bbox in range(0, len(cls_p[img_num])):
+            # Get the bounding box info
+            cls_i = cls_p[img_num][bbox]
+            reg_i = reg_p[img_num][bbox]
+            obj_i = obj_p[img_num][bbox]
+            
+            # Create a Rectangle patch
+            rect = patches.Rectangle((reg_i[0], reg_i[1]), reg_i[2], reg_i[3], linewidth=1, edgecolor='r', facecolor='none')
+        
+            # Add the rectangle to the image
+            ax.add_patch(rect)
+            
+            # Create a text patch
+            plt.text(reg_i[0], reg_i[1], f"{cls_i}    {obj_i}", fontdict=dict(fontsize="xx-small"), bbox=dict(fill=False, edgecolor='red', linewidth=0))
+        
+        plt.show()
 
 
 

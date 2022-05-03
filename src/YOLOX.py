@@ -2,6 +2,7 @@ from Darknet53 import Darknet53
 from LossFunctions import LossFunctions
 from pycocotools.cocoeval import COCOeval
 import matplotlib.pyplot as plt
+from SimOTA import SimOTA
 
 import torch
 from torch import nn
@@ -680,9 +681,9 @@ class YOLOX(nn.Module):
     # Load the model from a .pkl file
     # Input:
     #   loadDir - The directory to load the model from
-    #   paramLoadName - The name of the file to load the model paramters from
     #   loadName - The name of the file to load the model from
-    def loadModel(self, loadDir, paramLoadName, loadName):
+    #   paramLoadName - The name of the file to load the model paramters from
+    def loadModel(self, loadDir, loadName, paramLoadName):
         # Create the full file name
         modelFileName = os.path.join(loadDir, loadName)
         paramFileName = os.path.join(loadDir, paramLoadName)
@@ -722,7 +723,8 @@ class YOLOX(nn.Module):
     # Get predictions from the network on some images
     # Inputs:
     #   X - The inputs into the network (images to put bounding boxes on) 
-    def predict(self, X):
+    #   batchSize - The size of the batch to split the images into
+    def predict(self, X, batchSize):
         #https://medium.com/swlh/fcos-walkthrough-the-fully-convolutional-approach-to-object-detection-777f614268c
         # Look in inference mode
 
@@ -730,4 +732,110 @@ class YOLOX(nn.Module):
         # Note: Send cls and obj output through sigmoid, but not the reg outputs
 
 
-        return 1
+        # If the channel dimension is not the second dimension,
+        # reshape the images
+        if X.shape[1] > X.shape[3]:
+            X = X.reshape(X.shape[0], X.shape[3], X.shape[1], X.shape[2])
+
+        # Split the images into batches
+        if batchSize != 0:
+            X_batches = torch.split(X, batchSize)
+        else:
+            X_batches = (X_batches)
+        
+        # All predictions
+        preds = []
+        
+        # Iterate over all batches
+        for b_num in range(0, len(X_batches)):
+        
+            # Send the inputs through the network
+            preds_batch = self.forward(X_batches[b_num])
+            
+            # Save the predictions
+            preds.append(preds_batch)
+        
+        
+        
+        # All predictions in lists
+        cls_preds = []
+        reg_preds = []
+        obj_preds = []
+        
+        # Iterate over all batches to decode them
+        for b_num in range(0, len(preds)):
+            # The batch of outputs
+            out_batch = preds[b_num]
+            
+            # Get the flattened class predictions
+            cls_b = [out_batch[0][0].permute(0, 2, 3, 1), out_batch[0][1].permute(0, 2, 3, 1), out_batch[0][2].permute(0, 2, 3, 1)]
+            for b in range(0, len(cls_b)):
+                cls_b[b] = cls_b[b].reshape(cls_b[b].shape[0], cls_b[b].shape[1]*cls_b[b].shape[2], cls_b[b].shape[3])
+            
+            # Get the regression predictions
+            reg_b = [out_batch[1][0].permute(0, 2, 3, 1), out_batch[1][1].permute(0, 2, 3, 1), out_batch[1][2].permute(0, 2, 3, 1)]
+            for b in range(0, len(reg_b)):
+                reg_b[b] = reg_b[b].reshape(reg_b[b].shape[0], reg_b[b].shape[1]*reg_b[b].shape[2], reg_b[b].shape[3])
+            
+            # Get the objectiveness predictions
+            obj_b = [out_batch[2][0].permute(0, 2, 3, 1), out_batch[2][1].permute(0, 2, 3, 1), out_batch[2][2].permute(0, 2, 3, 1)]
+            for b in range(0, len(obj_b)):
+                obj_b[b] = obj_b[b].reshape(obj_b[b].shape[0], obj_b[b].shape[1]*obj_b[b].shape[2], obj_b[b].shape[3])
+            
+            
+            # Decode all regression outputs and store it as a numpy array
+            for b in range(0, len(reg_b)):
+                reg_b[b] = self.regDecode(reg_b[b], b).cpu().numpy()
+            
+            # Decode all class and objectiveness predictions by sending them
+            # through a sigmoid function. We do this since the loss
+            # function compares the sigmoid of the predictions
+            # to the actual values.
+            for b in range(0, len(cls_b)):
+                cls_b[b] = np.argmax((1/(1+np.exp(-cls_b[b]))).cpu().numpy(), axis=-1)
+                obj_b[b] = (1/(1+np.exp(-obj_b[b]))).cpu().numpy()
+                
+            
+            # Save the cls, reg, and obj predictions
+            cls_preds.append(cls_b)
+            reg_preds.append(reg_b)
+            obj_preds.append(obj_b)
+        
+        
+        # Delete the predictions as a torch tensor
+        del preds
+        
+        
+        # Final predictions for each input item
+        cls_preds_f = [[] for i in range(len(X))]
+        reg_preds_f = [[] for i in range(len(X))]
+        obj_preds_f = [[] for i in range(len(X))]
+        
+        
+        # Iterate over all batches
+        for b_num in range(len(cls_preds)):
+            # Iterate over all FPN levels
+            for level in range(len(cls_preds[b_num])):
+                # Iterate over all batch elements
+                for el in range(len(cls_preds[b_num][level])):
+                    # Get the cls, reg, and obj predictions
+                    cls_p = cls_preds[b_num][level][el]
+                    reg_p = reg_preds[b_num][level][el]
+                    obj_p = obj_preds[b_num][level][el]
+                    
+                    # Get the mask for positive predictions
+                    mask = (obj_p > 0.5).squeeze()
+                    
+                    # Get the masked values
+                    cls_m = cls_p[mask]
+                    reg_m = reg_p[mask]
+                    obj_m = obj_p[mask]
+                    
+                    # Store the masked results
+                    for m in range(0, cls_m.shape[0]):
+                        cls_preds_f[b_num*batchSize + el].append(cls_m[m])
+                        reg_preds_f[b_num*batchSize + el].append(reg_m[m])
+                        obj_preds_f[b_num*batchSize + el].append(obj_m[m])
+                    
+        # Return the predictions
+        return cls_preds_f, reg_preds_f, obj_preds_f

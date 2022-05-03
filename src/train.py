@@ -12,11 +12,6 @@ import os
 
 
 
-device = torch.device('cpu')
-if torch.cuda.is_available():
-   device = torch.device('cuda')
-cpu = torch.device('cpu')
-
 
 
 
@@ -26,6 +21,7 @@ cpu = torch.device('cpu')
 def train():
     # Model Hyperparameters
     k = 10                  # The max number of annotations per image
+    device = "gpu"          # The device to train the model with (cpu or gpu)
     numEpochs = 300         # The number of epochs to train the model for
     batchSize = 128         # The size of each minibatch
     warmupEpochs = 5        # Number of warmup epochs to train the model for
@@ -38,6 +34,7 @@ def train():
     reg_consts = (          # The contraints on the regression size
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
+    resize = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
     
     
     # Model Save Parameters
@@ -69,12 +66,24 @@ def train():
     annFile = '{}/annotations/instances_{}.json'.format(dataDir,dataType)
     categories = ["person", "dog", "cat"]   # The categories to load in
     numToLoad = 10           # Max Number of data images to load in (use -1 for all)
-    resize = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
     
     
     # Ensure the number of categories is equal to the list
     # of categories
     assert numCats == len(categories), "Number of categories (numCats) must be equal to the length of the categories list (categories)"
+    
+    
+    
+    # Putting device on GPU or CPU
+    if device.lower() == "gpu":
+        if torch.cuda.is_available():
+            device = torch.device('cuda:0')
+        else:
+            print("GPU not available, defaulting to CPU")
+            device = torch.device('cpu')
+    else:
+        device = torch.device('cpu')
+    cpu = torch.device('cpu')
     
     
     
@@ -242,12 +251,10 @@ def train():
     
     # Load the model if requested
     if loadModel:
-        model.loadModel(loadDir, paramLoadName, loadName)
+        model.loadModel(loadDir, loadName, paramLoadName)
     
     # Train the model
     model.train(imgs, anns, saveParams)
-    
-    
     
     
     #### Model Testing

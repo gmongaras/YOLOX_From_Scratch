@@ -44,8 +44,7 @@ def train():
     saveDir = "../models"   # The directory to save models to
     saveName = "model"      # File to save the model to
     paramSaveName = "modelParams"   # File to save the model parameters to
-    saveSteps = 1           # Save the model every X steps (use 0 to 
-                            # save once at the end of training)
+    saveSteps = 10          # Save the model every X steps
     saveOnBest = False      # Save the model only if it's the
                             # best model at save time
     overwrite = False       # True to overwrite the existing file when saving.
@@ -53,10 +52,10 @@ def train():
     
     
     # Model Loading Parameters
-    loadModel = True            # True to load in a pretrained model, False otherwise
+    loadModel = False           # True to load in a pretrained model, False otherwise
     loadDir = "../models"       # The directory to load the model from
-    paramLoadName = "modelParams - 2.json"   # File to load the model paramters from
-    loadName = "model - 2.pkl"  # Filename to load the model from
+    paramLoadName = "modelParams.json"   # File to load the model paramters from
+    loadName = "model.pkl"  # Filename to load the model from
     
     # Loss Function Hyperparameters
     FL_alpha = 4            # The focal loss alpha parameter

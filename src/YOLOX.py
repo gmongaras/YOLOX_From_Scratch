@@ -74,7 +74,6 @@ class YOLOX(nn.Module):
         self.JSON_Save = {
             "k": self.k,
             "ImgDim": self.ImgDim,
-            "reg_consts": self.reg_consts,
             "numCats": self.numCats,
             "strides": self.strides
         }
@@ -707,7 +706,6 @@ class YOLOX(nn.Module):
         # Save the loaded data to the model
         self.k = data['k']
         self.ImgDim = data['ImgDim']
-        self.reg_consts = data['reg_consts']
         self.numCats = data['numCats']
         self.strides = data['strides']
         self.JSON_Save = data

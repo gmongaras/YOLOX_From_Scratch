@@ -23,7 +23,7 @@ cpu = torch.device('cpu')
 
 
 
-def main():
+def predict():
     # Model Hyperparameters
     k = 10                  # The max number of annotations per image
     numEpochs = 300         # The number of epochs to train the model for
@@ -139,85 +139,12 @@ def main():
     seq_category_Ids_rev = {seq_category_Ids[i]:i for i in seq_category_Ids.keys()}
     
     
-    # Get all annoations which we want
-    anns = []
-    print("\nLoading Annotations...")
-    for i in range(0, len(img_data)):
-        img_d = img_data[i]
-        img = imgs[i]
-        prop = props[i]
-        pad = padding[i]
-        
-        # Get all annotations for this image
-        ann = ann_data[img_d["id"]]
-        ann_bbox = []
-        ann_cls = []
-        
-        # The class for each pixel in the image
-        pix_cls = np.zeros((img.shape[1], img.shape[2]))
-        
-        # The object probability for each pixel in the image
-        # (1 if object in pixel, 0 otherwise)
-        pix_obj = np.zeros((img.shape[1], img.shape[2]))
-        
-        # Iterate over every annotation and save it into a better form
-        for a in ann:
-            # Save the annotation if it bounds the wanted object
-            if a["category_id"] in category_Ids.values():
-                # Get the bounding box
-                bbox = a["bbox"]
-                
-                # Resize the bounding box
-                for j in range(0, len(bbox)):
-                    bbox[j] = bbox[j]*prop
-                    
-                # Add the padding to the bounding boxes
-                bbox[0] += pad[1]
-                bbox[1] += pad[0]
-                
-                # Save the bounding box
-                ann_bbox.append(bbox)
-                
-                # Save the class
-                cls = list(category_Ids.values()).index(a["category_id"])+1
-                ann_cls.append(cls)
-                
-                # Round the bounding box values to get an integer
-                # pixel value. The box is rounded to capture the
-                # smallest amount of area.
-                bbox[0] = math.floor(bbox[0])
-                bbox[1] = math.floor(bbox[1])
-                bbox[2] = math.ceil(bbox[2])
-                bbox[3] = math.ceil(bbox[3])
-                
-                # Add the class and the object probability
-                # to each pixel the bounding box captures
-                # Note: probability is 1 if an object is in the
-                #       part of the image and 0 otherwise
-                for w in range(bbox[0], bbox[0]+bbox[2]):
-                    for h in range(bbox[1], bbox[1]+bbox[3]):
-                        pix_cls[:][w][h] = cls
-                        pix_obj[:][w][h] = 1
-        
-        # Encode the classes as a tensor
-        pix_cls = torch.tensor(pix_cls, dtype=int, device=cpu, requires_grad=False)
-        
-        # One hot encode the pixel classes
-        #pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int, device=cpu), len(seq_category_Ids.values()))
-        
-        # Encode the objectiveness as a tensor
-        pix_obj = torch.tensor(pix_obj, dtype=int, device=cpu, requires_grad=False)
-        
-        anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls, "pix_obj":pix_obj})
-    print("Annotations Loaded!\n")
     
     
-    
-    
-    ### Model Training
+    ### Model Predicting ###
     torch.autograd.set_detect_anomaly(True)
     model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight)
-    model.train(imgs, anns)
+    model.predict(imgs, anns)
     
     
     
@@ -244,4 +171,4 @@ def main():
 
 
 if __name__=='__main__':
-    main()
+    predict()

@@ -7,6 +7,8 @@ import torch
 from torch import nn
 import numpy as np
 import math
+import os
+import json
 
 
 cpu = torch.device('cpu')
@@ -67,6 +69,15 @@ class YOLOX(nn.Module):
         # These value will be used to directly map the regression values
         # back to the image
         self.FPNPos = [torch.tensor([[(self.strides[i]/2 + k * self.strides[i], self.strides[i]/2 + j * self.strides[i]) for k in range(0, self.FPNShapes[i])] for j in range(0, self.FPNShapes[i])], device=cpu, dtype=torch.long) for i in range(0, len(self.strides))]
+        
+        # The JSON data to save when saving the model
+        self.JSON_Save = {
+            "k": self.k,
+            "ImgDim": self.ImgDim,
+            "reg_consts": self.reg_consts,
+            "numCats": self.numCats,
+            "strides": self.strides
+        }
         
         # The darknet backbone and output head
         self.darknet = Darknet53(device, numCats+1)
@@ -271,7 +282,9 @@ class YOLOX(nn.Module):
     # Inputs:
     #   X - The inputs into the network (images to put bounding boxes on)
     #   y - The labels for each input (correct bounding boxes to place on image)
-    def train(self, X, y):
+    #   saveParams - Model saving paramters in list format with the following items:
+    #       - [saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite]
+    def train(self, X, y, saveParams):
         # Make sure the input data are tensors
         if type(X) != torch.Tensor:
             X = torch.tensor(X, dtype=torch.float, device=cpu, requires_grad=False)
@@ -283,6 +296,12 @@ class YOLOX(nn.Module):
         # Get the regression targets for each bounding
         # box in the input image
         reg_targets = self.getTargets(y, reg_labels_init)
+        
+        # Unpack the save parameters
+        saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite = saveParams
+        
+        # The best loss so far
+        bestLoss = torch.inf
         
         # Update the models `numEpochs` number of times
         for epoch in range(1, self.numEpochs+1):
@@ -495,7 +514,11 @@ class YOLOX(nn.Module):
                             # Iterate over all GT boxes
                             for box in GT_bbox:
                                 # Broadcast the GT box
-                                box = torch.broadcast_to(box, reg_p[b_num].shape).to(cpu)
+                                box = torch.broadcast_to(box, reg_p[b_num].shape).to(cpu).clone()
+                                
+                                # For those boxes with a GT box, use those boxes instead
+                                # of the closest box
+                                box[reg_targs[b_num, :, 0] != -1] = reg_targs[b_num].long()[torch.where(reg_targs[b_num, :, 0] != -1)[0]]
                                 
                                 # Get the predicted bounding boxes. Note, these have
                                 # already been projected to the original image
@@ -578,9 +601,8 @@ class YOLOX(nn.Module):
             
             print(f"Step #{epoch}      Total Batch Loss: {batchLoss}")
             print("Reg:")
-            #print(reg[p][2].flatten(-2).T[reg_labels[2] == 1][:2])
-            print(print_boxes[reg_labels[2] == 1][:2])
-            print(reg_targs[2][reg_labels[2] == 1][:2])
+            print(f"Prediction: {print_boxes[reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print(f"Ground Truth: {reg_targs[2][reg_labels[2] == 1][:2].cpu().detach().numpy()}")
             
             cls_GT = []
             for i in self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[-1]):
@@ -591,23 +613,118 @@ class YOLOX(nn.Module):
                 cls_GT.append(best)
             cls_GT = torch.stack(cls_GT)
             
-            print("Cls:")
-            print(torch.argmax(cls_p[2][reg_labels[2] == 1][:2], dim=1))
-            print(cls_GT[reg_labels[2] == 1][:2])
-            
-            print("Obj:")
-            print(obj_p[2][reg_labels[2] == 1][:2])
-            print(obj_p[2][reg_labels[2] == 0][0])
             print()
+            print("Cls:")
+            print(f"Prediction: {torch.argmax(cls_p[2][reg_labels[2] == 1][:2], dim=1).cpu().detach().numpy()}")
+            print(f"Ground Truth: {cls_GT[reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print()
+            print("Obj:")
+            print(f"Prediction: {obj_p[2][reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print("\n")
             
             # Step the learning rate scheduler after the warmup steps
             if epoch > self.warmupEpochs:
                 self.scheduler.step()
+            
+            # Save the model if the model is in the proper state
+            if saveSteps != 0:
+                if epoch % saveSteps == 0:
+                    if saveOnBest == True:
+                        if batchLoss < bestLoss:
+                            bestLoss = batchLoss
+                            self.saveModel(saveDir, paramSaveName, saveName, overwrite, epoch)
+                
+                    else:
+                        self.saveModel(saveDir, paramSaveName, saveName, overwrite, epoch)
         
         return 0
         
+    
+    
+    
+    
+    # Save the model
+    # Inputs:
+    #   saveDir - The directory to save models to
+    #   paramSaveName - The file to save the model paramters to
+    #   saveName - File to save the model to
+    #   overwrite - True to overwrite the file when saving.
+    #               False to make a new file when saving
+    #   epoch (optional) - The current epoch the model is on when training
+    def saveModel(self, saveDir, paramSaveName, saveName, overwrite, epoch=0):        
+        # Ensure the directory exists 
+        if not os.path.isdir(saveDir):
+            os.mkdir(saveDir)
         
-    def predict(self):
+        # If overwrite is False, create the new filename using the
+        # current epoch by appending the epoch to the file name
+        if not overwrite:
+            modelSaveName = f"{saveName} - {epoch}"
+            paramSaveName = f"{paramSaveName} - {epoch}"
+            
+        # Add .pkl to the end of the model save name
+        modelSaveName = f"{modelSaveName}.pkl"
+        
+        # Add .json to the end of the paramater save name
+        paramSaveName = f"{paramSaveName}.json"
+        
+        # Save the model
+        torch.save(self.state_dict(), os.path.join(saveDir, modelSaveName))
+        
+        # Save the paramters
+        with open(os.path.join(saveDir, paramSaveName), "w", encoding='utf-8') as f:
+            json.dump(self.JSON_Save, f, ensure_ascii=False)
+    
+    
+    
+    
+    # Load the model from a .pkl file
+    # Input:
+    #   loadDir - The directory to load the model from
+    #   paramLoadName - The name of the file to load the model paramters from
+    #   loadName - The name of the file to load the model from
+    def loadModel(self, loadDir, paramLoadName, loadName):
+        # Create the full file name
+        modelFileName = os.path.join(loadDir, loadName)
+        paramFileName = os.path.join(loadDir, paramLoadName)
+        
+        # Ensure the directory exists
+        assert os.path.isdir(loadDir), f"Load directory {loadDir} does not exist."
+        
+        # Ensure the model file exists
+        assert os.path.isfile(modelFileName), f"Load file {modelFileName} does not exist."
+        
+        # Ensure the parameter file exists
+        assert os.path.isfile(paramFileName), f"Load file {paramFileName} does not exist."
+        
+        # Load in the model file if it exists
+        self.load_state_dict(torch.load(modelFileName))
+        
+        # Load in the parameters
+        with open(paramFileName, "r", encoding='utf-8') as f:
+            data = json.load(f)
+            
+        # Save the loaded data to the model
+        self.k = data['k']
+        self.ImgDim = data['ImgDim']
+        self.reg_consts = data['reg_consts']
+        self.numCats = data['numCats']
+        self.strides = data['strides']
+        self.JSON_Save = data
+        self.FPNShapes = [self.ImgDim//self.strides[0], self.ImgDim//self.strides[1], self.ImgDim//self.strides[2]]
+        self.FPNPos = [torch.tensor([[(self.strides[i]/2 + k * self.strides[i], self.strides[i]/2 + j * self.strides[i]) for k in range(0, self.FPNShapes[i])] for j in range(0, self.FPNShapes[i])], device=cpu, dtype=torch.long) for i in range(0, len(self.strides))]
+    
+    
+    
+    
+    
+    
+    
+    
+    # Get predictions from the network on some images
+    # Inputs:
+    #   X - The inputs into the network (images to put bounding boxes on) 
+    def predict(self, X):
         #https://medium.com/swlh/fcos-walkthrough-the-fully-convolutional-approach-to-object-detection-777f614268c
         # Look in inference mode
 

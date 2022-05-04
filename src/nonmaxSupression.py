@@ -28,8 +28,8 @@ def soft_nonmaxSupression(B, S, C, N):
         # Data for the current image
         b = np.array(B[img])
         s_static = np.array(S[img]) # scores that won't we updated by the s update function
-        s = np.squeeze(S[img])
-        c = np.squeeze(C[img])
+        s = S[img]
+        c = C[img]
         
         # The bounding boxes we want to keep for this image
         D_img = []

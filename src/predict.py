@@ -36,11 +36,15 @@ def predict():
     reg_consts = (          # The contraints on the regression size
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
+    removal_threshold = 0.8 # The threshold of predictions to remove if the
+                            # confidence in that prediction is below this value
+    nonmax_threshold = 0.1  # The threshold of predictions to remove if the
+                            # IoU is over this threshold
     
     
     # Training Paramters
     dataDir = "../testData" # Directory to load data from
-    batchSize = 1           # The size of each minibatch of data (use 0
+    batchSize = 0           # The size of each minibatch of data (use 0
                             # to use a single batch)
     
     
@@ -127,7 +131,7 @@ def predict():
     with torch.no_grad():
         
         # Create the model
-        model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids)
+        model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold)
         
         # Load the model if requested
         model.loadModel(loadDir, loadName, paramLoadName)

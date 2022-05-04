@@ -32,6 +32,10 @@ def train():
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
     ImgDim = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
+    removal_threshold = 0.8 # The threshold of predictions to remove if the
+                            # confidence in that prediction is below this value
+    nonmax_threshold = 0.1  # The threshold of predictions to remove if the
+                            # IoU is under this threshold
     
     
     # Model Save Parameters
@@ -252,7 +256,7 @@ def train():
     saveParams = [saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite]
     
     # Create the model
-    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids)
+    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, nonmax_threshold)
     
     # Load the model if requested
     if loadModel:

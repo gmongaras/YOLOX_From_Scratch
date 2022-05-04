@@ -37,7 +37,11 @@ class YOLOX(nn.Module):
     #   reg_consts - The regression constraints (should be 4 values)
     #   reg_weight - Percent to weight the regression loss over the other loss
     #   category_Ids - Dictionary mapping categories to their ids
-    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids):
+    #   removal_threshold - The threshold of predictions to remove if the
+    #                       confidence in that prediction is below this value
+    #   nonmax_threshold - The threshold of predictions to remove if the
+    #                       IoU is under this threshold
+    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold):
         super(YOLOX, self).__init__()
         
         # Save the model paramters
@@ -53,6 +57,8 @@ class YOLOX(nn.Module):
         self.numCats = numCats
         self.reg_weight = reg_weight
         self.category_Ids = category_Ids
+        self.removal_threshold = removal_threshold
+        self.nonmax_threshold = nonmax_threshold
         
         # Trainable paramters for the exponential function which the
         # regression values are sent through
@@ -746,7 +752,7 @@ class YOLOX(nn.Module):
         if batchSize != 0:
             X_batches = torch.split(X, batchSize)
         else:
-            X_batches = (X_batches)
+            X_batches = [X]
         
         # All predictions
         preds = []
@@ -832,7 +838,7 @@ class YOLOX(nn.Module):
                     # Using a predefined threshold to remove
                     # clearly terrible predictions before
                     # applying nomax supression
-                    mask = (obj_p > 0.5).squeeze()
+                    mask = (obj_p > self.removal_threshold).squeeze()
                     
                     # Get the masked values
                     cls_m = cls_p[mask]
@@ -847,7 +853,7 @@ class YOLOX(nn.Module):
         
         # Apply nonmax supression to remove 
         # predictions that are more liekly to be correct
-        reg_preds_f, obj_preds_f, cls_preds_f = soft_nonmaxSupression(reg_preds_f, obj_preds_f, cls_preds_f, 0.5)
+        reg_preds_f, obj_preds_f, cls_preds_f = soft_nonmaxSupression(reg_preds_f, obj_preds_f, cls_preds_f, self.nonmax_threshold)
                     
         # Return the predictions
         return cls_preds_f, reg_preds_f, obj_preds_f

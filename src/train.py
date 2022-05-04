@@ -28,13 +28,10 @@ def train():
     lr_init = 0.01          # Initial learning rate
     weightDecay = 0.0005    # Amount to decay weights over time
     momentum = 0.9          # Momentum of the SGD optimizer
-    SPPDim = 256            # The height and width dimension to convert FPN 
-                            # (Feature Pyramid Network) encodings to
-    numCats = 3             # The number of categories to predict from
     reg_consts = (          # The contraints on the regression size
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
-    resize = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
+    ImgDim = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
     
     
     # Model Save Parameters
@@ -64,13 +61,8 @@ def train():
     dataDir = "../coco"     # The location of the COCO dataset
     dataType = "val2017"    # The type of data being used in the COCO dataset
     annFile = '{}/annotations/instances_{}.json'.format(dataDir,dataType)
-    categories = ["person", "dog", "cat"]   # The categories to load in
-    numToLoad = 10           # Max Number of data images to load in (use -1 for all)
-    
-    
-    # Ensure the number of categories is equal to the list
-    # of categories
-    assert numCats == len(categories), "Number of categories (numCats) must be equal to the length of the categories list (categories)"
+    categories = []         # The categories to load in (empty list to load all)
+    numToLoad = 10          # Max Number of data images to load in (use -1 for all)
     
     
     
@@ -91,6 +83,18 @@ def train():
     
     # Initialize the COCO data
     coco=COCO(annFile)
+    
+    
+    # Get the number of categories
+    numCats = len(categories)
+    
+    
+    # If the number of categories is 0, load all categories
+    if numCats == 0:
+        categories = [coco.cats[i]['name'] for i in coco.cats]
+        numCats = len(categories)
+    
+    
     
     # Get the image data and annotations
     img_data = []
@@ -136,7 +140,7 @@ def train():
         # Resize the image
         img = Image.fromarray(img) # Convert to PIL object
         img = img.convert("RGB")   # Convert to RGB
-        prop = resize/(max(img.height, img.width)) # proportion to resize image
+        prop = ImgDim/(max(img.height, img.width)) # proportion to resize image
         new_h = round(img.height*prop)
         new_w = round(img.width*prop)
         img = img.resize((new_w, new_h))
@@ -144,8 +148,8 @@ def train():
         img = np.array(img)
         
         # Pad with zeros if needed
-        pad = [(resize-img.shape[0])-(resize-img.shape[0])//2, (resize-img.shape[1])-(resize-img.shape[1])//2]
-        img = np.pad(img, (((resize-img.shape[0])-(resize-img.shape[0])//2, ((resize-img.shape[0])//2)), ((resize-img.shape[1])-(resize-img.shape[1])//2, ((resize-img.shape[1])//2)), (0, 0)), mode='constant')
+        pad = [(ImgDim-img.shape[0])-(ImgDim-img.shape[0])//2, (ImgDim-img.shape[1])-(ImgDim-img.shape[1])//2]
+        img = np.pad(img, (((ImgDim-img.shape[0])-(ImgDim-img.shape[0])//2, ((ImgDim-img.shape[0])//2)), ((ImgDim-img.shape[1])-(ImgDim-img.shape[1])//2, ((ImgDim-img.shape[1])//2)), (0, 0)), mode='constant')
         
         # Save the array, the resize proportion, and the padding
         imgs.append(img)
@@ -247,7 +251,7 @@ def train():
     saveParams = [saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite]
     
     # Create the model
-    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight)
+    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight)
     
     # Load the model if requested
     if loadModel:

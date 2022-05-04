@@ -362,10 +362,6 @@ class YOLOX(nn.Module):
                     # on how good each prediction is
                     reg_labels = reg_labels_b[p]
                     
-                    # Copy the regression labels to make objectiveness
-                    # predictions
-                    obj_labels = torch.clone(reg_labels)
-                    
                     # Get the regression targets for
                     # this FPN level
                     reg_targs = reg_targets_b[p]
@@ -396,7 +392,7 @@ class YOLOX(nn.Module):
                     ### Regression Loss 
                     
                     # The total GIoU loss
-                    GIoU_loss = 0
+                    reg_loss = 0
                     
                     # Get the GIoU between each target bounding box
                     # and each predicted bounding box
@@ -446,10 +442,10 @@ class YOLOX(nn.Module):
                             continue
                         
                         # Get the GIoU Loss and Value for the positive targets
-                        GIoULoss, _ = self.losses.GIoU(bbox[reg_labels[b_num] != 0].to(cpu), GTs[reg_labels[b_num] != 0])
+                        GIoU_loss, _ = self.losses.GIoU(bbox[reg_labels[b_num] != 0].to(cpu), GTs[reg_labels[b_num] != 0])
                         
                         # Sum the loss across all images and save it
-                        GIoU_loss += GIoULoss.sum()
+                        reg_loss += GIoU_loss.sum()
                     
                     
                     
@@ -557,6 +553,9 @@ class YOLOX(nn.Module):
                     
                     
                     
+                    # Use SimOTA to get label assignments
+                    #SimOTA(y_b, )
+                    
                     
                     
                     
@@ -564,7 +563,7 @@ class YOLOX(nn.Module):
                     
                     # Get the final loss for this prediction
                     N_pos = torch.count_nonzero(reg_labels)
-                    finalLoss = (1/N_pos)*cls_Loss + self.reg_weight*((1/N_pos)*GIoU_loss) + (1/N_pos)*obj_Loss
+                    finalLoss = (1/N_pos)*cls_Loss + self.reg_weight*((1/N_pos)*reg_loss) + (1/N_pos)*obj_Loss
                     #finalLoss = (1/N_pos)*obj_Loss
                     totalLoss += finalLoss
                 
@@ -601,8 +600,8 @@ class YOLOX(nn.Module):
             
             print(f"Step #{epoch}      Total Batch Loss: {batchLoss}")
             print("Reg:")
-            print(f"Prediction: {print_boxes[reg_labels[2] == 1][:2].cpu().detach().numpy()}")
-            print(f"Ground Truth: {reg_targs[2][reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print(f"Prediction:\n{print_boxes[reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print(f"Ground Truth:\n{reg_targs[2][reg_labels[2] == 1][:2].cpu().detach().numpy()}")
             
             cls_GT = []
             for i in self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[-1]):
@@ -619,7 +618,7 @@ class YOLOX(nn.Module):
             print(f"Ground Truth: {cls_GT[reg_labels[2] == 1][:2].cpu().detach().numpy()}")
             print()
             print("Obj:")
-            print(f"Prediction: {obj_p[2][reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print(f"Prediction:\n{obj_p[2][reg_labels[2] == 1][:2].cpu().detach().numpy()}")
             print("\n")
             
             # Step the learning rate scheduler after the warmup steps
@@ -824,12 +823,19 @@ class YOLOX(nn.Module):
                     obj_p = obj_preds[b_num][level][el]
                     
                     # Get the mask for positive predictions
-                    mask = (obj_p > 0.5).squeeze()
+                    # Using a predefined threshold to remove
+                    # clearly terrible predictions before
+                    # applying nomax supression
+                    mask = (obj_p > 0.9).squeeze()
                     
                     # Get the masked values
                     cls_m = cls_p[mask]
                     reg_m = reg_p[mask]
                     obj_m = obj_p[mask]
+                    
+                    # Apply nonmax supression to remove 
+                    # predictions that are more liekly to be correct
+                    #print()
                     
                     # Store the masked results
                     for m in range(0, cls_m.shape[0]):

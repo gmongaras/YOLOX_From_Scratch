@@ -33,4 +33,6 @@ OTA - https://arxiv.org/abs/2103.14259
 
 focal loss - https://towardsdatascience.com/multi-class-classification-using-focal-loss-and-lightgbm-a6a6dec28872
 
+nonmax supression - https://arxiv.org/pdf/1704.04503.pdf
+
 GIoU - https://giou.stanford.edu/

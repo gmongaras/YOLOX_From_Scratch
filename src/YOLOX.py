@@ -11,6 +11,8 @@ import math
 import os
 import json
 
+from nonmaxSupression import soft_nonmaxSupression
+
 
 cpu = torch.device('cpu')
 
@@ -837,15 +839,15 @@ class YOLOX(nn.Module):
                     reg_m = reg_p[mask]
                     obj_m = obj_p[mask]
                     
-                    # Apply nonmax supression to remove 
-                    # predictions that are more liekly to be correct
-                    #print()
-                    
                     # Store the masked results
                     for m in range(0, cls_m.shape[0]):
                         cls_preds_f[b_num*batchSize + el].append(cls_m[m])
                         reg_preds_f[b_num*batchSize + el].append(reg_m[m])
                         obj_preds_f[b_num*batchSize + el].append(obj_m[m])
+        
+        # Apply nonmax supression to remove 
+        # predictions that are more liekly to be correct
+        reg_preds_f, obj_preds_f, cls_preds_f = soft_nonmaxSupression(reg_preds_f, obj_preds_f, cls_preds_f, 0.5)
                     
         # Return the predictions
         return cls_preds_f, reg_preds_f, obj_preds_f

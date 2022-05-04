@@ -88,6 +88,8 @@ def predict():
     k = data['k']
     ImgDim = data['ImgDim']
     numCats = data['numCats']
+    category_Ids = data['category_Ids']
+    category_Ids_rev = {category_Ids[i]:i for i in category_Ids.keys()}
     
     
     # List to hold the images as tensors
@@ -125,7 +127,7 @@ def predict():
     with torch.no_grad():
         
         # Create the model
-        model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight)
+        model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids)
         
         # Load the model if requested
         model.loadModel(loadDir, loadName, paramLoadName)
@@ -163,7 +165,7 @@ def predict():
             ax.add_patch(rect)
             
             # Create a text patch
-            plt.text(reg_i[0], reg_i[1], f"{cls_i}    {obj_i}", fontdict=dict(fontsize="xx-small"), bbox=dict(fill=False, edgecolor='red', linewidth=0))
+            plt.text(reg_i[0], reg_i[1], f"{category_Ids_rev[cls_i]}    {obj_i}", fontdict=dict(fontsize="xx-small"), bbox=dict(fill=False, edgecolor='red', linewidth=0))
         
         plt.show()
 

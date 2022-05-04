@@ -34,7 +34,8 @@ class YOLOX(nn.Module):
     #   FL_gamma - The focal loss gamma parameter
     #   reg_consts - The regression constraints (should be 4 values)
     #   reg_weight - Percent to weight the regression loss over the other loss
-    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight):
+    #   category_Ids - Dictionary mapping categories to their ids
+    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids):
         super(YOLOX, self).__init__()
         
         # Save the model paramters
@@ -49,6 +50,7 @@ class YOLOX(nn.Module):
         self.reg_consts = reg_consts
         self.numCats = numCats
         self.reg_weight = reg_weight
+        self.category_Ids = category_Ids
         
         # Trainable paramters for the exponential function which the
         # regression values are sent through
@@ -76,7 +78,8 @@ class YOLOX(nn.Module):
             "k": self.k,
             "ImgDim": self.ImgDim,
             "numCats": self.numCats,
-            "strides": self.strides
+            "strides": self.strides,
+            "category_Ids": self.category_Ids
         }
         
         # The darknet backbone and output head
@@ -708,6 +711,7 @@ class YOLOX(nn.Module):
         self.ImgDim = data['ImgDim']
         self.numCats = data['numCats']
         self.strides = data['strides']
+        self.category_Ids = data["category_Ids"]
         self.JSON_Save = data
         self.FPNShapes = [self.ImgDim//self.strides[0], self.ImgDim//self.strides[1], self.ImgDim//self.strides[2]]
         self.FPNPos = [torch.tensor([[(self.strides[i]/2 + k * self.strides[i], self.strides[i]/2 + j * self.strides[i]) for k in range(0, self.FPNShapes[i])] for j in range(0, self.FPNShapes[i])], device=cpu, dtype=torch.long) for i in range(0, len(self.strides))]
@@ -826,7 +830,7 @@ class YOLOX(nn.Module):
                     # Using a predefined threshold to remove
                     # clearly terrible predictions before
                     # applying nomax supression
-                    mask = (obj_p > 0.9).squeeze()
+                    mask = (obj_p > 0.5).squeeze()
                     
                     # Get the masked values
                     cls_m = cls_p[mask]

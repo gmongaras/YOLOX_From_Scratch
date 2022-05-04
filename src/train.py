@@ -165,9 +165,10 @@ def train():
     
     # Save the category ids as sequential numbers instead of
     # the default number given to that category
-    seq_category_Ids = {i:category_Ids[i] for i in category_Ids.keys()}
+    seq_category_Ids = {list(category_Ids.keys())[i]:i+1 for i in range(0, len(category_Ids.keys()))}
+    seq_category_Ids_rev = {i+1:list(category_Ids.keys())[i] for i in range(0, len(category_Ids.keys()))}
     seq_category_Ids["Background"] = 0
-    seq_category_Ids_rev = {seq_category_Ids[i]:i for i in seq_category_Ids.keys()}
+    seq_category_Ids_rev[0] = "Background"
     
     
     # Get all annoations which we want
@@ -251,7 +252,7 @@ def train():
     saveParams = [saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite]
     
     # Create the model
-    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight)
+    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids)
     
     # Load the model if requested
     if loadModel:

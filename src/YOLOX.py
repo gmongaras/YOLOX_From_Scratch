@@ -295,9 +295,9 @@ class YOLOX(nn.Module):
     #   y - The labels for each input (correct bounding boxes to place on image)
     #   saveParams - Model saving paramters in list format with the following items:
     #       - [saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite]
-    def train(self, X, y, saveParams):
-        # Set the training flag to true
-        self.training = True
+    def train_model(self, X, y, saveParams):
+        # Put the model in training mode
+        self.train()
         
         # Make sure the input data are tensors
         if type(X) != torch.Tensor:
@@ -739,8 +739,8 @@ class YOLOX(nn.Module):
     #   X - The inputs into the network (images to put bounding boxes on) 
     #   batchSize - The size of the batch to split the images into
     def predict(self, X, batchSize):
-        # Set the training flag to false
-        self.training = False
+        # Put the model in evaluation mode
+        self.eval()
         
         # If the channel dimension is not the second dimension,
         # reshape the images
@@ -756,7 +756,7 @@ class YOLOX(nn.Module):
         # All predictions
         preds = []
         
-        # Iterate over all batches
+       # Iterate over all batches
         for b_num in range(0, len(X_batches)):
         
             # Send the inputs through the network

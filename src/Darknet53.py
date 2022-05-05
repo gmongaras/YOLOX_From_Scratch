@@ -33,7 +33,7 @@ class residual(nn.Module):
         
         X_new = self.block(X)
         
-        return X_new + X
+        return X_new + res
 
 
 

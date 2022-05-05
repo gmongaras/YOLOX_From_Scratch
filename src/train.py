@@ -263,7 +263,7 @@ def train():
         model.loadModel(loadDir, loadName, paramLoadName)
     
     # Train the model
-    model.train(imgs, anns, saveParams)
+    model.train_model(imgs, anns, saveParams)
     
     
     #### Model Testing

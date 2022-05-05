@@ -110,8 +110,9 @@ def predict():
     if not cap.isOpened():
         raise IOError("Cannot open webcam")
     
-    # Keep the webcam open until the program is stopped
-    while True:
+    # Iterate until ENTER or esc is pressed
+    c = 0
+    while c != 13 and c != 27:
         
         # Get a webcam state
         ret, frame = cap.read()
@@ -155,47 +156,17 @@ def predict():
             # Create a text patch
             img = cv2.putText(img, f"{category_Ids_rev[cls_i]}    {obj_i}", (round(reg_i[0].item()), round(reg_i[1].item())), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 2, cv2.LINE_AA)
         
+        # Resize the image
+        img = cv2.resize(img, (600,600), interpolation=cv2.INTER_AREA)
+        
         # Show the frame
         cv2.imshow('Input', img)
-        
-        # Break the loop
         c = cv2.waitKey(1)
-        if c == 27:
-            break
     
     
-    
-    # Convert the images to a numpy array
-    imgs = imgs.cpu().numpy()
-    
-    # Iterate over all images
-    for img_num in range(0, imgs.shape[0]):
-        # Get the image as a Pillow object
-        img = Image.fromarray(np.uint8(imgs[img_num]))
-        
-        # Create the figure and subplots
-        fig, ax = plt.subplots()
-        
-        # Display the image
-        ax.imshow(img)
-        
-        # Iterate over all bounding boxes for this image
-        for bbox in range(0, len(cls_p[img_num])):
-            # Get the bounding box info
-            cls_i = cls_p[img_num][bbox]
-            reg_i = reg_p[img_num][bbox]
-            obj_i = obj_p[img_num][bbox]
-            
-            # Create a Rectangle patch
-            rect = patches.Rectangle((reg_i[0], reg_i[1]), reg_i[2], reg_i[3], linewidth=1, edgecolor='r', facecolor='none')
-        
-            # Add the rectangle to the image
-            ax.add_patch(rect)
-            
-            # Create a text patch
-            plt.text(reg_i[0], reg_i[1], f"{category_Ids_rev[cls_i]}    {obj_i}", fontdict=dict(fontsize="xx-small"), bbox=dict(fill=False, edgecolor='red', linewidth=0))
-        
-        plt.show()
+    # Free the camera
+    cap.release()
+    cv2.destroyAllWindows()
 
 
 

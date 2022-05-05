@@ -845,6 +845,9 @@ class YOLOX(nn.Module):
                     reg_m = reg_p[mask]
                     obj_m = obj_p[mask]
                     
+                    # Ensure no negative bounding box predictions
+                    reg_m = np.where(reg_m < 0, 0, reg_m)
+                    
                     # Store the masked results
                     for m in range(0, cls_m.shape[0]):
                         cls_preds_f[b_num*batchSize + el].append(cls_m[m])

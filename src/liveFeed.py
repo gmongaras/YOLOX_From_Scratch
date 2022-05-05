@@ -2,7 +2,7 @@ from YOLOX import YOLOX
 from pycocotools.coco import COCO
 import numpy as np
 import skimage.io as io
-from PIL import Image
+from PIL import Image, ImageOps
 import random
 import torch
 import math
@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 import matplotlib.patches as patches
 import os
 import json
+import cv2
 
 
 
@@ -37,20 +38,14 @@ def predict():
         )                   # boxes can be for each level in the network
     removal_threshold = 0.5 # The threshold of predictions to remove if the
                             # confidence in that prediction is below this value
-    nonmax_threshold = 0.1  # The threshold of predictions to remove if the
+    nonmax_threshold = 0.2  # The threshold of predictions to remove if the
                             # IoU is over this threshold
-    
-    
-    # Training Paramters
-    dataDir = "../testData" # Directory to load data from
-    batchSize = 0           # The size of each minibatch of data (use 0
-                            # to use a single batch)
     
     
     # Model Loading Parameters
     loadDir = "../models"       # The directory to load the model from
     paramLoadName = "modelParams - test.json"   # File to load the model paramters from
-    loadName = "model - test.pkl"  # Filename to load the model from
+    loadName = "model - t.pkl"  # Filename to load the model from
     
     
     # Loss Function Hyperparameters
@@ -77,11 +72,10 @@ def predict():
     
     ### Data Loading ###
     
-    # Ensure the directory exists
-    assert os.path.isdir(loadDir), f"Load directory {loadDir} does not exist."
     
-    # Ensure the parameter file exists
-    assert os.path.isfile(os.path.join(loadDir, paramLoadName)), f"Load file {os.path.join(loadDir, paramLoadName)} does not exist."
+    
+    
+    ### Model Loading ###
     
     # Load in the model parameters
     with open(os.path.join(loadDir, paramLoadName), "r", encoding='utf-8') as f:
@@ -95,16 +89,36 @@ def predict():
     category_Ids_rev = {category_Ids[i]:i for i in category_Ids.keys()}
     
     
-    # List to hold the images as tensors
-    imgs = []
     
-    # Iterate over all files in the directory
-    for file in os.listdir(dataDir):
-        # Load in the image
-        img = io.imread(os.path.join(dataDir, file))
+    # We don't care about the gradients
+    with torch.no_grad():
+        
+        # Create the model
+        model = YOLOX(device, k, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold)
+        
+        # Load the model from a saved state
+        model.loadModel(loadDir, loadName, paramLoadName)
+        
+        
+    
+    
+    ### Video Capture ###
+    
+    cap = cv2.VideoCapture(0)
+
+    # Check if the webcam is opened correctly
+    if not cap.isOpened():
+        raise IOError("Cannot open webcam")
+    
+    # Keep the webcam open until the program is stopped
+    while True:
+        
+        # Get a webcam state
+        ret, frame = cap.read()
         
         # Resize the image
-        img = Image.fromarray(img) # Convert to PIL object
+        img = Image.fromarray(frame) # Convert to PIL object
+        img = ImageOps.mirror(img) # Mirrow image horizontally
         img = img.convert("RGB")   # Convert to RGB
         prop = ImgDim/(max(img.height, img.width)) # proportion to resize image
         new_h = round(img.height*prop)
@@ -115,28 +129,39 @@ def predict():
         # Pad with zeros if needed
         img = np.pad(img, (((ImgDim-img.shape[0])-(ImgDim-img.shape[0])//2, ((ImgDim-img.shape[0])//2)), ((ImgDim-img.shape[1])-(ImgDim-img.shape[1])//2, ((ImgDim-img.shape[1])//2)), (0, 0)), mode='constant')
         
-        # Save the images as a tensor
-        imgs.append(torch.tensor(img, dtype=torch.float, requires_grad=False, device=device))
-    
-    # Save all the images as a single tensor
-    imgs = torch.stack(imgs).to(device)
-    
-    
-    
-    
-    ### Model Loading ###
-    
-    # We don't care about the gradients
-    with torch.no_grad():
         
-        # Create the model
-        model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold)
+        # Convert the image to a tensor
+        img_tensor = torch.tensor(np.array([img]), requires_grad=False, dtype=torch.float, device=device)
         
-        # Load the model from a saved state
-        model.loadModel(loadDir, loadName, paramLoadName)
+        
         
         # Get the predictions from the model
-        cls_p, reg_p, obj_p = model.predict(imgs, batchSize)
+        with torch.no_grad():
+            cls_p, reg_p, obj_p = model.predict(img_tensor, 1)
+        
+        # Iterate over all bounding boxes for this image
+        for bbox in range(0, len(cls_p[0])):
+            # Get the bounding box info
+            cls_i = cls_p[0][bbox]
+            reg_i = reg_p[0][bbox]
+            obj_i = obj_p[0][bbox]
+            
+            # Create a Rectangle patch
+            top_left = (round(reg_i[0].item()), round(reg_i[1].item()))
+            bottom_right = (round((reg_i[0]+reg_i[2]).item()), round((reg_i[1]+reg_i[3]).item()))
+            color = (0, 0, 255)
+            img = cv2.rectangle(img, top_left, bottom_right, color, 2)
+            
+            # Create a text patch
+            img = cv2.putText(img, f"{category_Ids_rev[cls_i]}    {obj_i}", (round(reg_i[0].item()), round(reg_i[1].item())), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 2, cv2.LINE_AA)
+        
+        # Show the frame
+        cv2.imshow('Input', img)
+        
+        # Break the loop
+        c = cv2.waitKey(1)
+        if c == 27:
+            break
     
     
     

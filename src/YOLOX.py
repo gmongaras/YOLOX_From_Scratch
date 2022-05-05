@@ -296,6 +296,9 @@ class YOLOX(nn.Module):
     #   saveParams - Model saving paramters in list format with the following items:
     #       - [saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite]
     def train(self, X, y, saveParams):
+        # Set the training flag to true
+        self.training = True
+        
         # Make sure the input data are tensors
         if type(X) != torch.Tensor:
             X = torch.tensor(X, dtype=torch.float, device=cpu, requires_grad=False)
@@ -736,13 +739,9 @@ class YOLOX(nn.Module):
     #   X - The inputs into the network (images to put bounding boxes on) 
     #   batchSize - The size of the batch to split the images into
     def predict(self, X, batchSize):
-        #https://medium.com/swlh/fcos-walkthrough-the-fully-convolutional-approach-to-object-detection-777f614268c
-        # Look in inference mode
-
-
-        # Note: Send cls and obj output through sigmoid, but not the reg outputs
-
-
+        # Set the training flag to false
+        self.training = False
+        
         # If the channel dimension is not the second dimension,
         # reshape the images
         if X.shape[1] > X.shape[3]:

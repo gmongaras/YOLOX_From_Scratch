@@ -21,7 +21,7 @@ import cv2
 
 
 
-def predict():
+def liveFeed():
     # Model Hyperparameters
     k = 10                  # The max number of annotations per image
     device = "gpu"          # The device to train the model with (cpu or gpu)
@@ -38,14 +38,14 @@ def predict():
         )                   # boxes can be for each level in the network
     removal_threshold = 0.5 # The threshold of predictions to remove if the
                             # confidence in that prediction is below this value
-    nonmax_threshold = 0.2  # The threshold of predictions to remove if the
+    nonmax_threshold = 0.1  # The threshold of predictions to remove if the
                             # IoU is over this threshold
     
     
     # Model Loading Parameters
     loadDir = "../models"       # The directory to load the model from
     paramLoadName = "modelParams - test.json"   # File to load the model paramters from
-    loadName = "model - t.pkl"  # Filename to load the model from
+    loadName = "model - test.pkl"  # Filename to load the model from
     
     
     # Loss Function Hyperparameters
@@ -134,7 +134,7 @@ def predict():
         # Convert the image to a tensor
         img_tensor = torch.tensor(np.array([img]), requires_grad=False, dtype=torch.float, device=device)
         
-        
+
         
         # Get the predictions from the model
         with torch.no_grad():
@@ -172,4 +172,4 @@ def predict():
 
 
 if __name__=='__main__':
-    predict()
+    liveFeed()

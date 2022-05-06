@@ -14,10 +14,10 @@
 - [Coco Dataset Information](#coco-dataset-information)
   - [Downloading The Data](#downloading-the-data)
   - [Coco Bounding Box Data Format](#coco-bounding-box-data-format)
-- (Running The Model)[#running-the-model]
-  - Training
-  - Predicting
-  - Live Feed
+- [Running The Model](#running-the-model)
+  - [Training](#training)
+  - [Predicting](#predicting)
+  - [Live Feed](#live-feed)
 - Results
 - Sources
 
@@ -197,8 +197,41 @@ To train the model using a pretrained model, ensure a [pretrained model was down
 Assuming you now have the data and and an optional pretrained model on your computer, use the following command from the root directory of this repository to begin training the model:
 
 ```
-python src/
+cd src/
+python train.py
 ```
+
+More Info Coming In The Future
+
+## Predicting
+
+To make predictions with the model, ensure a [pretrained model was downloaded](#pretrained-models).
+
+Additionally, any images you wish the model to put bounding boxes around should be placed into the `./testData/` directory of this repository. A couple of images are already supplied.
+
+Assuming the pretrained model was downloaded and is in the correct repository, use the following command from the root directory of this repository to begin making predictions with the model:
+
+```
+cd src/
+python predict.py
+```
+
+
+## Live Feed
+
+The Live Feed mode will use a pretrained model and your device camera to put boudning boxes around your camera environment in real time.
+
+To use the live feed mode, ensure a [pretrained model was downloaded](#pretrained-models).
+
+To run the live feed mode, use the following command from the root repository in the directory:
+
+```
+cd src/
+python liveFeed.py
+```
+
+
+To stop the live feed script, press `esc` or `ENTER`.
 
 
 # Things Read

@@ -7,18 +7,46 @@
 
 # Contents
 - [Project Purpose](#project-purpose)
+- [Project Requirements](#project-requirements)
 - [Model Information](#model-information)
 - [Cloning This Repo](#cloning-this-repo)
   - [Directory Information](#directory-information)
 - [Coco Dataset Information](#coco-dataset-information)
   - [Downloading The Data](#downloading-the-data)
   - [Coco Bounding Box Data Format](#coco-bounding-box-data-format)
-- Running The Model
+- (Running The Model)[#running-the-model]
   - Training
   - Predicting
   - Live Feed
 - Results
 - Sources
+
+
+# Project Requirements
+
+This project was written in Python. At the time of this README update, `python 3.8.10` was used, but any python up to 3.9 should work.
+
+The following libraries with their versions are needed to completely run this project:
+```
+PyTorch: 1.11.0
+PyCocoTools: 2.0.4
+NumPy: 1.22.3
+SciKit Image: 0.18.2
+Pillow: 8.2.0
+Matplotlib: 3.4.2
+CV2: 4.5.2.54
+```
+
+You can install all these libraries using the following commands:
+```
+pip install torch
+pip install pycocotools
+pip install numpy
+pip install scikit-image
+pip install pillow
+pip install matplotlib
+pip install opencv-python
+```
 
 
 
@@ -128,6 +156,8 @@ http://images.cocodataset.org/zips/val2017.zip
 3. Uncompress the following and place all annotations in the `./coco/annotations/` directory:
 http://images.cocodataset.org/annotations/annotations_trainval2017.zip
 
+After downloading the data, your filesystem should loo [like the following](#directory-information).
+
 
 ## Coco Bounding Box Data Format
 
@@ -139,6 +169,36 @@ Each bounding box has 4 values. These values line up with what we want our model
 - 1 and 2 define the top left region of the bounding box
 - 3 and 4 define the length and width of the bounding box
 
+
+# Pretrained Models
+
+Pretrianed models can be found using the following google drive link:
+https://drive.google.com/drive/folders/1hXQQgntAAs0DdrcaF8FtR4_nZnhMyvZb?usp=sharing
+
+Please ensure that any models that were downloaded are paired with their paramters. Each model has two files:
+1. A .pkl file which stores the model data
+2. A .json file that stores extra configuration information on the model
+
+Both file should go into the `./models/` Directory within your local repository.
+
+After the model has been downloaded, ensure the filesystem [looks like the following](#directory-information).
+
+
+# Running The Model
+
+There are three different scripts I wrote to run the model:
+
+## Training
+
+To train the model, ensure the [data was downloaded correctly](#downloading-the-data).
+
+To train the model using a pretrained model, ensure a [pretrained model was downloaded](#pretrained-models).
+
+Assuming you now have the data and and an optional pretrained model on your computer, use the following command from the root directory of this repository to begin training the model:
+
+```
+python src/
+```
 
 
 # Things Read

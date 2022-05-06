@@ -8,9 +8,13 @@
 # Contents
 - [Project Purpose](#project-purpose)
 - [Model Information](#model-information)
-- Coco Dataset Information
+- [Cloning This Repo](#cloning-this-repo)
+  - [Directory Information](#directory-information)
+- [Coco Dataset Information](#coco-dataset-information)
+  - [Downloading The Data](#downloading-the-data)
+  - [Coco Bounding Box Data Format](#coco-bounding-box-data-format)
 - Running The Model
-  - Trianing
+  - Training
   - Predicting
   - Live Feed
 - Results
@@ -43,28 +47,97 @@ YOLOX simply has the model directly predict the bounding box dimensions as oppos
 </p>
 
 The final predictions of this model are the following:
-- reg - The predicted bounding box which has 4 values:
+- Reg - The predicted bounding box which has 4 values:
   1. X value of the top-left corner of the bounding box
   2. Y value of the top-left corner of the bounding box
   3. Height of the boudning box
   4. Width of the bounding box
-- cls - The predicted class the model thinks is inside the bounding box. This is a one-hot encoded vector with the same number of elements are there are classes.
+- Cls - The predicted class the model thinks is inside the bounding box. This is a one-hot encoded vector with the same number of elements are there are classes.
 - IoU (obj) - The objectiveness prediction of the predicted bounding box. This is a single value showing how confident an object is in the predicted bounding box.
 
 More about the model can be found in the [articles I wrote](#project-purpose).
 
 
-# Coco Dataset Information
-I used the COCO dataset (2017 test and 2017 val):
-https://cocodataset.org/#download
 
-## Coco bounding box data format (what is each part of the 4-part bounding box?)
+# Cloning This Repo
+
+To clone this repo, use the following command in your computer terminal:
+```
+https://github.com/gmongaras/YOLOX_From_Scratch.git
+```
+
+After cloning the repo, please dowload the Coco data which is specified in [Coco Dataset Information](#coco-dataset-information)
+
+## Directory Information
+
+The Coco data should be in the proper format so the model can properly find the data. The directory tree below is how the repo should be properly formatted assuming the val 2017 and test 2017 data was downloaded:
+
+```
+.
+├── coco
+│   ├── annotations
+|   |   ├── captions_train2017.json
+|   |   ├── captions_val2017.json
+|   |   ├── instances_train2017.json
+|   |   ├── instances_val2017.json
+|   |   ├── person_keypoints_train2017.json
+|   |   └── person_keypoints_val2017.json
+│   └── images
+|   ├── train 2017
+|   |   ├── 000000000009.jpg
+|   |   ├── 000000000025.jpg
+|   |   ├── ...
+|   |   └── {more images in the train2017 dataset}
+|   ├── val2017
+|   |   ├── 000000000139.jpg
+|   |   ├── 000000000285.jpg
+|   |   ├── ...
+|   |   └── {more images in the val2017 dataset}
+├── models
+│   ├── model - test.pkl
+|   └── modelParams - test.json
+├── src
+│   ├── YOLOX.py
+│   └── {all other .py scripts}
+├── testData
+|   ├── 000000013201.jpg
+|   └── {Other images to test on}
+├── .gitignore
+└── README.md
+```
+
+
+
+# Coco Dataset Information
+
+To test and train this particular model, I used the Coco dataset. The Coco dataset has images along with bounding box labels in those images. More information can be found on the [Coco website](https://cocodataset.org/#home).
+
+## Downloading The Data
+
+In particular, I used the 2017 val and 2017 train data to train/test this model. The data can be found at the following link: https://cocodataset.org/#download
+
+Dirct download links can be found below:
+- Note: The data takes up about 20 Gb of memory.
+
+1. Uncompress the following and place all images in the `./coco/images/train2017/` directory:
+http://images.cocodataset.org/zips/test2017.zip
+
+2. Uncompress the following and place all images in the `./coco/images/val2017/` directory:
+http://images.cocodataset.org/zips/val2017.zip
+
+3. Uncompress the following and place all annotations in the `./coco/annotations/` directory:
+http://images.cocodataset.org/annotations/annotations_trainval2017.zip
+
+
+## Coco Bounding Box Data Format
+
+Each bounding box has 4 values. These values line up with what we want our model to predict which are:
 1. horizontal (x) value from left
 2. verticle (y) value from top
 3. width of bounding box
 4. height of bounding box
 - 1 and 2 define the top left region of the bounding box
-- 3 and 4 define the width of the bounding box
+- 3 and 4 define the length and width of the bounding box
 
 
 

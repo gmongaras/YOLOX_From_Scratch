@@ -99,7 +99,7 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
     
     # 2: Already have the predictions
     
-    # 3: Create the supplying vector for each gt.
+    # 3: Create the supplying vector for each gt using dynamic k estimation
     # Each gt gets the sum of the top q IoU values.
     # This method is known as dynamic k estimation
     # Note: Each k represents the number of labels each gt gets
@@ -125,8 +125,8 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
         # Get the (x, y) coordinates of the intersections
         xA = np.maximum(gt[0], P_reg[:, 0])
         yA = np.maximum(gt[1], P_reg[:, 1])
-        xB = np.maximum(gt[0]+gt[2], P_reg[:, 0]+P_reg[:, 2])
-        yB = np.maximum(gt[1]+gt[3], P_reg[:, 1]+P_reg[:, 3])
+        xB = np.minimum(gt[0]+gt[2], P_reg[:, 0]+P_reg[:, 2])
+        yB = np.minimum(gt[1]+gt[3], P_reg[:, 1]+P_reg[:, 3])
         
         # Get the area of the intersections
         intersectionArea = np.maximum(0, xB - xA + 1) * np.maximum(0, yB - yA + 1)

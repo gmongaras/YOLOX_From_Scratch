@@ -36,7 +36,7 @@ def liveFeed():
     reg_consts = (          # The contraints on the regression size
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
-    removal_threshold = 0.5 # The threshold of predictions to remove if the
+    removal_threshold = 0.75# The threshold of predictions to remove if the
                             # confidence in that prediction is below this value
     nonmax_threshold = 0.1  # The threshold of predictions to remove if the
                             # IoU is over this threshold

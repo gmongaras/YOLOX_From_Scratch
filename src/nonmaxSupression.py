@@ -77,8 +77,8 @@ def soft_nonmaxSupression(B, S, C, N):
                 # Get the (x, y) coordinates of the intersection
                 xA = np.maximum(M[0], bbox[0])
                 yA = np.maximum(M[1], bbox[1])
-                xB = np.maximum(M[0]+M[2], bbox[0]+bbox[2])
-                yB = np.maximum(M[1]+M[3], bbox[1]+bbox[3])
+                xB = np.minimum(M[0]+M[2], bbox[0]+bbox[2])
+                yB = np.minimum(M[1]+M[3], bbox[1]+bbox[3])
                 
                 # Get the area of the intersection
                 intersectionArea = np.maximum(0, xB - xA + 1) * np.maximum(0, yB - yA + 1)

@@ -60,7 +60,7 @@ https://arxiv.org/abs/2107.08430
 The original repo can be found using the link below:
 https://github.com/Megvii-BaseDetection/YOLOX
 
-When reading over the YOLOX paper, I noticed it was missing a lot of content which was assumed knowledge from other papers like YOLOv3, OTA, FCOS, and others. Since this algorithm does better than the famous YOLO algorithms but does so without anchors, it is important to understand how it works in order to improve bounding box algorithms in an anchor-free manor. Using this repo, I will attempt to explain how the algorithm works in some sort of article format and will put the links below as I write them:
+When reading over the YOLOX paper, I noticed it was missing a lot of content that was assumed knowledge from other papers like YOLOv3, OTA, FCOS, and others. Since this algorithm does better than the famous YOLO algorithms but does so without anchors, it is important to understand how it works in order to improve bounding box algorithms in an anchor-free manner. Using this repo, I will attempt to explain how the algorithm works in some sort of article format and will put the links below as I write them:
 
 Links to come...
 
@@ -68,13 +68,13 @@ Links to come...
 # Model Information
 
 What problem is the model trying to solve?
-This model is the first YOLO algorithm to use anchor-free detection. An anchor is basically a predefined bounding box shape that helps the network. Instead of predicting the direct bounding box, previous YOLO algorithms predicted an offset from a predefined anchor box. So, if an anchor box had length and with of 100 and 50 and the model predicted length and width of 10 and 15, the bounding box prediction would be an offset from the anchor box with a length and width of 110 and 65. More information about anchor boxes can be found [in this conversation](https://github.com/pjreddie/darknet/issues/568).
+This model is the first YOLO (You Only Look Once) algorithm to use anchor-free detection. An anchor is basically a predefined bounding box shape that helps the network. Instead of predicting the direct bounding box, previous YOLO algorithms predicted an offset from a predefined anchor box. So, if an anchor box had length and with of 100 and 50 and the model predicted length and width of 10 and 15, the bounding box prediction would be an offset from the anchor box with a length and width of 110 and 65. More information about anchor boxes can be found [in this conversation](https://github.com/pjreddie/darknet/issues/568).
 
 What's the problem with anchor boxes?
 Anchor boxes are basically an extra parameter. How anchors should the model use? What should the sizes of the anchors be? These questions lead to more hyperparameter tuning and less diversity in the model. 
 
 How does the model solve the anchor box problem?
-YOLOX simply has the model directly predict the bounding box dimensions as opposed to predicting an offset from an anchor box. To do this, it uses a decoupled head unlike other YOLO algorithms. Below is the side by side comparison between the YOLOv3 model and the YOLOX model which can be found in the YOLOX paper:
+YOLOX simply has the model directly predict the bounding box dimensions as opposed to predicting an offset from an anchor box. To do this, it uses a decoupled head, unlike other YOLO algorithms. Below is the side by side comparison between the YOLOv3 model and the YOLOX model, which can be found in the YOLOX paper:
 
 <p align="center">
   <img src=https://user-images.githubusercontent.com/43501738/167199518-17bdf353-1636-493e-b937-9e3c6f8a2349.png>
@@ -84,7 +84,7 @@ The final predictions of this model are the following:
 - Reg - The predicted bounding box which has 4 values:
   1. X value of the top-left corner of the bounding box
   2. Y value of the top-left corner of the bounding box
-  3. Height of the boudning box
+  3. Height of the bounding box
   4. Width of the bounding box
 - Cls - The predicted class the model thinks is inside the bounding box. This is a one-hot encoded vector with the same number of elements are there are classes.
 - IoU (obj) - The objectiveness prediction of the predicted bounding box. This is a single value showing how confident an object is in the predicted bounding box.
@@ -100,11 +100,11 @@ To clone this repo, use the following command in your computer terminal:
 https://github.com/gmongaras/YOLOX_From_Scratch.git
 ```
 
-After cloning the repo, please dowload the Coco data which is specified in [Coco Dataset Information](#coco-dataset-information)
+After cloning the repo, please download the Coco data which is specified in [Coco Dataset Information](#coco-dataset-information)
 
 ## Directory Information
 
-The Coco data should be in the proper format so the model can properly find the data. The directory tree below is how the repo should be properly formatted assuming the val 2017 and test 2017 data was downloaded:
+The Coco data should be in the proper format so the model can properly find the data. The directory tree below is how the repo should be properly formatted, assuming the val 2017 and test 2017 data were downloaded:
 
 ```
 .
@@ -150,7 +150,7 @@ To test and train this particular model, I used the Coco dataset. The Coco datas
 
 In particular, I used the 2017 val and 2017 train data to train/test this model. The data can be found at the following link: https://cocodataset.org/#download
 
-Dirct download links can be found below:
+Direct download links can be found below:
 - Note: The data takes up about 20 Gb of memory.
 
 1. Uncompress the following and place all images in the `./coco/images/train2017/` directory:
@@ -162,7 +162,7 @@ http://images.cocodataset.org/zips/val2017.zip
 3. Uncompress the following and place all annotations in the `./coco/annotations/` directory:
 http://images.cocodataset.org/annotations/annotations_trainval2017.zip
 
-After downloading the data, your filesystem should loo [like the following](#directory-information).
+After downloading the data, your filesystem should look [like the following](#directory-information).
 
 
 ## Coco Bounding Box Data Format
@@ -170,8 +170,8 @@ After downloading the data, your filesystem should loo [like the following](#dir
 Each bounding box has 4 values. These values line up with what we want our model to predict which are:
 1. horizontal (x) value from left
 2. verticle (y) value from top
-3. width of bounding box
-4. height of bounding box
+3. width of the bounding box
+4. height of the bounding box
 - 1 and 2 define the top left region of the bounding box
 - 3 and 4 define the length and width of the bounding box
 
@@ -181,11 +181,11 @@ Each bounding box has 4 values. These values line up with what we want our model
 Pretrianed models can be found using the following google drive link:
 https://drive.google.com/drive/folders/1hXQQgntAAs0DdrcaF8FtR4_nZnhMyvZb?usp=sharing
 
-Please ensure that any models that were downloaded are paired with their paramters. Each model has two files:
+Please ensure that any models that were downloaded are paired with their parameters. Each model has two files:
 1. A .pkl file which stores the model data
 2. A .json file that stores extra configuration information on the model
 
-Both file should go into the `./models/` Directory within your local repository.
+Both files should go into the `./models/` Directory within your local repository.
 
 After the model has been downloaded, ensure the filesystem [looks like the following](#directory-information).
 
@@ -198,16 +198,16 @@ There are three different scripts I wrote to run the model:
 
 To train the model, ensure the [data was downloaded correctly](#downloading-the-data).
 
-To train the model using a pretrained model, ensure a [pretrained model was downloaded](#pretrained-models).
+To train the model using a pre-trained model, ensure a [pretrained model was downloaded](#pretrained-models).
 
-Assuming you now have the data and and an optional pretrained model on your computer, use the following command from the root directory of this repository to begin training the model:
+Assuming you now have the data and an optional pre-trained model on your computer, use the following command from the root directory of this repository to begin training the model:
 
 ```
 cd src/
 python train.py
 ```
 
-More Info Coming In The Future
+More info coming in the future
 
 ## Predicting
 
@@ -215,7 +215,7 @@ To make predictions with the model, ensure a [pretrained model was downloaded](#
 
 Additionally, any images you wish the model to put bounding boxes around should be placed into the `./testData/` directory of this repository. A couple of images are already supplied.
 
-Assuming the pretrained model was downloaded and is in the correct repository, use the following command from the root directory of this repository to begin making predictions with the model:
+Assuming the pre-trained model was downloaded and is in the correct repository, use the following command from the root directory of this repository to begin making predictions with the model:
 
 ```
 cd src/
@@ -225,7 +225,7 @@ python predict.py
 
 ## Live Feed
 
-The Live Feed mode will use a pretrained model and your device camera to put boudning boxes around your camera environment in real time.
+The Live Feed mode will use a pre-trained model and your device camera to put bounding boxes around your camera environment in real-time.
 
 To use the live feed mode, ensure a [pretrained model was downloaded](#pretrained-models).
 
@@ -249,6 +249,6 @@ OTA - https://arxiv.org/abs/2103.14259
 
 focal loss - https://towardsdatascience.com/multi-class-classification-using-focal-loss-and-lightgbm-a6a6dec28872
 
-nonmax supression - https://arxiv.org/pdf/1704.04503.pdf
+nonmax suppression - https://arxiv.org/pdf/1704.04503.pdf
 
 GIoU - https://giou.stanford.edu/

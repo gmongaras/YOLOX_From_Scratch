@@ -382,6 +382,10 @@ class YOLOX(nn.Module):
                     reg_targs = reg_targets_b[p]
                     reg_targs = torch.negative(torch.ones(reg_targs.shape))
                     
+                    # The ground truth class for each anchor initialized
+                    # as the background class
+                    cls_targs = torch.zeros(reg_labels.shape, dtype=torch.long, requires_grad=False, device=cpu)
+                    
                     # Denormalize/move the predicted bounding boxes
                     # so they are in the correct location
                     # pos = self.FPNPos[p]
@@ -414,6 +418,9 @@ class YOLOX(nn.Module):
                                 
                                 # Assign the bounding box
                                 reg_targs[img][pos] = torch.tensor(y_b[img]['bbox'][gt_num])
+                                
+                                # Assign the class
+                                cls_targs[img][pos] = y_b[img]['cls'][gt_num]
                     
                     #reg_labels = self.filterPos(reg_p, p, y_b)
                     
@@ -489,35 +496,43 @@ class YOLOX(nn.Module):
                     
                     ### Class Loss
                     
-                    # Get the ground truth value for each prediction as a one-hot vector
-                    GT = torch.zeros(list(cls_p.shape[:-1])+[self.numCats+1])
+                    # # Get the ground truth value for each prediction as a one-hot vector
+                    # GT = torch.zeros(list(cls_p.shape[:-1])+[self.numCats+1])
                     
-                    # Iterate over all images
-                    temp = self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2])
-                    for b_num in range(0, cls_p.shape[0]): # Iterate over all batch elements
-                        # Iterate over all FPN positions
-                        for pos in range(0, self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1]):
-                            # Current coords mapping back to the original image
-                            coord = temp[pos]
+                    # # Iterate over all images
+                    # temp = self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2])
+                    # for b_num in range(0, cls_p.shape[0]): # Iterate over all batch elements
+                    #     # Iterate over all FPN positions
+                    #     for pos in range(0, self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1]):
+                    #         # Current coords mapping back to the original image
+                    #         coord = temp[pos]
                             
-                            # Is there a class other than the background class (0) in
-                            # a 3x3 area?
-                            first = y_b[b_num]['pix_cls'][coord[0], coord[1]-1:coord[1]+2]
-                            second = y_b[b_num]['pix_cls'][coord[0]+1, coord[1]-1:coord[1]+2]
-                            third = y_b[b_num]['pix_cls'][coord[0]-1, coord[1]-1:coord[1]+2]
+                    #         # Is there a class other than the background class (0) in
+                    #         # a 3x3 area?
+                    #         first = y_b[b_num]['pix_cls'][coord[0], coord[1]-1:coord[1]+2]
+                    #         second = y_b[b_num]['pix_cls'][coord[0]+1, coord[1]-1:coord[1]+2]
+                    #         third = y_b[b_num]['pix_cls'][coord[0]-1, coord[1]-1:coord[1]+2]
                             
-                            # Get the possible classes
-                            pos_cls = torch.cat((first, second, third))
+                    #         # Get the possible classes
+                    #         pos_cls = torch.cat((first, second, third))
                             
-                            # Pick the highest class and store it as a 1 in a one-hot vector
-                            GT[b_num, pos][torch.max(pos_cls)] = 1
+                    #         # Pick the highest class and store it as a 1 in a one-hot vector
+                    #         GT[b_num, pos][torch.max(pos_cls)] = 1
                     
-                    # Send the data through the Focal Loss function
-                    #cls_Loss = self.losses.FocalLoss(cls_p.to(cpu), GT)
+                    # # Send the data through the Focal Loss function
+                    # #cls_Loss = self.losses.FocalLoss(cls_p.to(cpu), GT)
                     
-                    # Send the positive data through the BCE loss function
-                    cls_Loss = self.losses.BinaryCrossEntropy(cls_p[reg_labels != 0].to(cpu), GT[reg_labels != 0])
+                    # # Send the positive data through the BCE loss function
+                    # cls_Loss = self.losses.BinaryCrossEntropy(cls_p[reg_labels != 0].to(cpu), GT[reg_labels != 0])
                     #cls_Loss = nn.BCEWithLogitsLoss(reduction='sum')(cls_p.to(cpu)[reg_labels != 0], GT[reg_labels != 0])
+                    
+                    
+                    
+                    # One hot encode the targets
+                    cls_targs_hot = nn.functional.one_hot(cls_targs, cls_p.shape[-1])
+                    
+                    # Get the loss value
+                    cls_Loss = self.losses.BinaryCrossEntropy(cls_p[reg_labels != 0].to(cpu), cls_targs_hot[reg_labels != 0].float())
                     
                     
                     
@@ -587,12 +602,6 @@ class YOLOX(nn.Module):
                         
                         # # Get the objectiveness loss for this image
                         # obj_Loss += self.losses.BinaryCrossEntropy(obj_sub, saved_GIoU[b_num])
-                    
-                    
-                    
-                    
-                    # Use SimOTA to get label assignments
-                    #SimOTA(y_b, )
                     
                     
                     

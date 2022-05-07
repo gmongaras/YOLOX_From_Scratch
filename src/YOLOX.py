@@ -558,8 +558,7 @@ class YOLOX(nn.Module):
                             GT_bbox = torch.tensor(y_b[b_num]["bbox"], device=cpu, requires_grad=False)
                             
                             # The best GIoU values for each predicted bounding box
-                            #best_GIoU = torch.negative(torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float))
-                            best_GIoU = torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float)
+                            best_GIoU = torch.negative(torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float))
                             
                             # Iterate over all GT boxes
                             for box in GT_bbox:

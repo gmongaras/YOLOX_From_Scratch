@@ -558,7 +558,8 @@ class YOLOX(nn.Module):
                             GT_bbox = torch.tensor(y_b[b_num]["bbox"], device=cpu, requires_grad=False)
                             
                             # The best GIoU values for each predicted bounding box
-                            best_GIoU = torch.negative(torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float))
+                            #best_GIoU = torch.negative(torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float))
+                            best_GIoU = torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float)
                             
                             # Iterate over all GT boxes
                             for box in GT_bbox:
@@ -575,12 +576,17 @@ class YOLOX(nn.Module):
                                 
                                 # Get the GIoU between the predicted boudning boxes
                                 # and the current bounding box in iteration
+                                # Note: we don't want the loss since the loss
+                                # is higher when the GIoU is lower since this is
+                                # basically the opposite of the value
                                 _, all_GIoU = self.losses.GIoU(pred_bbox, box)
                                 
-                                # Get the max GIoU loss for each bounding box
+                                # Get the max GIoU value for each bounding box
                                 # between the new GIoU values and the current
                                 # saved ones. Save the max values
-                                best_GIoU = torch.maximum(best_GIoU, 1/(1+torch.exp(-5*all_GIoU)))
+                                #best_GIoU = torch.minimum(best_GIoU, 1/(1+torch.exp(-5*all_GIoU)))
+                                #best_GIoU = torch.minimum(best_GIoU, torch.sigmoid(all_GIoU_loss))
+                                best_GIoU = torch.maximum(best_GIoU, torch.sigmoid(all_GIoU))
                         
                         # Get the loss between the batch elements
                         # Note: We don't just want the positively
@@ -616,12 +622,6 @@ class YOLOX(nn.Module):
                 
                 
                 ### Updating the model
-                #if epoch%20 == 0:
-                #    plt.imshow(torch.argmax(cls_p[0], dim=-1).reshape(int(cls_p[0].shape[0]**0.5), int(cls_p[0].shape[0]**0.5)).cpu().detach().numpy(), interpolation='nearest')
-                #    plt.show()
-                #if epoch%5 == 0:
-                #    plt.imshow(iou_p[0].cpu().detach().numpy(), interpolation='nearest')
-                #    plt.show()
                 
                 # Backpropogate the loss
                 totalLoss.backward()
@@ -665,7 +665,7 @@ class YOLOX(nn.Module):
             print(f"Ground Truth: {cls_GT[reg_labels[2] == 1][:2].cpu().detach().numpy()}")
             print()
             print("Obj:")
-            print(f"Prediction:\n{obj_p[2][reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print(f"Prediction:\n{1/(1+np.exp(-obj_p[2][reg_labels[2] == 1][:2].cpu().detach().numpy()))}")
             print("\n")
             
             # Step the learning rate scheduler after the warmup steps

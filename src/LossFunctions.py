@@ -147,9 +147,11 @@ class LossFunctions():
         x_2_I = torch.minimum(x_2_p, x_2_g)
         y_1_I = torch.maximum(y_1_p, y_1_g)
         y_2_I = torch.minimum(y_2_p, y_2_g)
-        I = torch.zeros(x_1_I.shape)
-        I[torch.any(torch.logical_and(x_2_I > x_1_I, y_2_I > y_1_I))] = \
-            (x_2_I - x_1_I) * (y_2_I - y_1_I)
+        
+        # The intersection is 0 if the area is 0 or below or
+        # the positive area of the intersection if it's greater than 0
+        I = torch.where(torch.logical_and(x_2_I > x_1_I, y_2_I > y_1_I), (x_2_I - x_1_I) * (y_2_I - y_1_I), torch.tensor(0.0))
+        nn.functional.relu(I, inplace=True)
         
         # 5: Find coordinate of smallest enclosing box B_c
         x_1_c = torch.minimum(x_1_p, x_1_g)
@@ -166,6 +168,10 @@ class LossFunctions():
         
         # 8: Calculate the GIoU
         GIoU = IoU - ((A_c - U) / A_c)
+        
+        # Ensure the GIoU value is between -1 and 1
+        assert torch.where(GIoU > 1)[0].shape[0] == 0, "GIoU is greater than 1... This shouldn't happen"
+        assert torch.where(GIoU < -1)[0].shape[0] == 0, "GIoU is less than -1... This shouldn't happen"
         
         # 9: Save the values as loss
         # (we use 1 - GIoU as we want to minimize the GIoU)

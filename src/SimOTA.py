@@ -84,8 +84,6 @@ def centerPrior(A, G_box, r, extraCost):
 def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
     # Note: gt = ground truth
     
-    # If G is not a numpy array, convert it to a numpy array
-    
     # Convert the objects to numpy arrays
     G_reg = convertNumpy(G_reg)
     G_cls = convertNumpy(G_cls)

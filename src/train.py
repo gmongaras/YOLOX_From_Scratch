@@ -38,6 +38,14 @@ def train():
                             # IoU is under this threshold
     
     
+    # SimOta Parameters
+    q = 2               # The number of GIoU values to pick when calculating the k values
+                        #  - k = The number of labels (supply) each gt has
+    r = 2               # The radius used to calculate the center prior
+    extraCost = 100000  # The extra cost used in the center prior computation
+    SimOta_lambda = 3   # Balancing factor for the foreground loss
+    
+    
     # Model Save Parameters
     saveDir = "../models"   # The directory to save models to
     saveName = "model"      # File to save the model to
@@ -255,8 +263,11 @@ def train():
     # File saving parameters
     saveParams = [saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite]
     
+    # SimOta Paramters
+    SimOTA_params = [q, r, extraCost, SimOta_lambda]
+    
     # Create the model
-    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, nonmax_threshold)
+    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, nonmax_threshold, SimOTA_params)
     
     # Load the model if requested
     if loadModel:

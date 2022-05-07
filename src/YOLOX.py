@@ -41,7 +41,13 @@ class YOLOX(nn.Module):
     #                       confidence in that prediction is below this value
     #   nonmax_threshold - The threshold of predictions to remove if the
     #                       IoU is under this threshold
-    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold):
+    #   SimOTA_params - Paramters used for the SimOta calculation:
+    #   1. q - The number of GIoU values to pick when calculating the k values
+    #   2. r - The radius used to calculate the center prior
+    #   3. extraCost - The extra cost used in the center prior computation
+    #   4. SimOta_lambda = Balancing factor for the foreground loss
+    #   - This parameter is only required for training
+    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold, SimOTA_params=None):
         super(YOLOX, self).__init__()
         
         # Save the model paramters
@@ -59,6 +65,7 @@ class YOLOX(nn.Module):
         self.category_Ids = category_Ids
         self.removal_threshold = removal_threshold
         self.nonmax_threshold = nonmax_threshold
+        self.SimOTA_params = SimOTA_params
         
         # Trainable paramters for the exponential function which the
         # regression values are sent through
@@ -399,12 +406,19 @@ class YOLOX(nn.Module):
                     
                     ### Positive Filtering
                     
+                    # Get the stored SimOta paramters
+                    q = self.SimOTA_params[0]
+                    r = self.SimOTA_params[1]
+                    extraCost = self.SimOTA_params[2]
+                    SimOta_lambda = self.SimOTA_params[3]
+                    
                     # Iterate over all images
                     for img in range(0, len(y_b)):
+                        
                         # Use SimOTA to filter the anchors for that image
                         # and get the indices for the positive anchors
                         # and the ground truths for those anchors
-                        pos_idx = SimOTA(y_b[img]['bbox'], y_b[img]['cls'], self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2]), cls_p[img], reg_p[img], 2, 2, 100000.0, 3, self.losses)
+                        pos_idx = SimOTA(y_b[img]['bbox'], y_b[img]['cls'], self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2]), cls_p[img], reg_p[img], q, r, extraCost, SimOta_lambda, self.losses)
                     
                         # Iterate over all positive labels and store them
                         for gt_num in range(0, len(pos_idx)):

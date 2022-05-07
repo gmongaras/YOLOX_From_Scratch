@@ -75,8 +75,8 @@ def centerPrior(A, G_box, r, extraCost):
 #       - k = The number of labels (supply) each gt has
 #   r - The radius used to calculate the center prior
 #   extraCost - The extra cost used in the center prior computation
-#   LossFuncts - A LossFunctions object used to get loss values in this function
 #   Lambda - balancing factor for the foreground loss
+#   LossFuncts - A LossFunctions object used to get loss values in this function
 # Output:
 #   List of lists where the first dimension is the same as the number
 #   of ground truths and the second is the anchors corresponding

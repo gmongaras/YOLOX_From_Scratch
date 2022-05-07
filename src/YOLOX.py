@@ -375,10 +375,12 @@ class YOLOX(nn.Module):
                     # this FPN level. These will change based
                     # on how good each prediction is
                     reg_labels = reg_labels_b[p]
+                    reg_labels = torch.zeros(reg_labels.shape)
                     
                     # Get the regression targets for
                     # this FPN level
                     reg_targs = reg_targets_b[p]
+                    reg_targs = torch.negative(torch.ones(reg_targs.shape))
                     
                     # Denormalize/move the predicted bounding boxes
                     # so they are in the correct location
@@ -389,7 +391,29 @@ class YOLOX(nn.Module):
                     #         reg_p[:, x_mov, y_mov, 1] += pos[x_mov, y_mov, 1]
                     
                     
+                    
+                    
                     ### Positive Filtering
+                    
+                    # Iterate over all images
+                    for img in range(0, len(y_b)):
+                        # Use SimOTA to filter the anchors for that image
+                        # and get the indices for the positive anchors
+                        # and the ground truths for those anchors
+                        pos_idx = SimOTA(y_b[img]['bbox'], y_b[img]['cls'], self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2]), cls_p[img], reg_p[img], 2, 2, 100000.0, 3, self.losses)
+                    
+                        # Iterate over all positive labels and store them
+                        for gt_num in range(0, len(pos_idx)):
+                            
+                            gt = pos_idx[gt_num]
+                            
+                            # Iterate over all positive labels for this gt
+                            for pos in gt:
+                                # Assign it as a positive lablel
+                                reg_labels[img][pos] = 1
+                                
+                                # Assign the bounding box
+                                reg_targs[img][pos] = torch.tensor(y_b[img]['bbox'][gt_num])
                     
                     #reg_labels = self.filterPos(reg_p, p, y_b)
                     

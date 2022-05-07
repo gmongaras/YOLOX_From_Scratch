@@ -30,7 +30,7 @@ def liveFeed():
     lr_init = 0.01          # Initial learning rate
     weightDecay = 0.0005    # Amount to decay weights over time
     momentum = 0.9          # Momentum of the SGD optimizer
-    SPPDim = 256            # The height and width dimension to convert FPN 
+    ImgDim = 256            # The height and width dimension to convert FPN 
                             # (Feature Pyramid Network) encodings to
     numCats = 3             # The number of categories to predict from
     reg_consts = (          # The contraints on the regression size
@@ -94,7 +94,7 @@ def liveFeed():
     with torch.no_grad():
         
         # Create the model
-        model = YOLOX(device, k, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold)
+        model = YOLOX(device, k, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold)
         
         # Load the model from a saved state
         model.loadModel(loadDir, loadName, paramLoadName)

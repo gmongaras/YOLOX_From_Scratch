@@ -97,7 +97,7 @@ More about the model can be found in the [articles I wrote](#project-purpose).
 
 To clone this repo, use the following command in your computer terminal:
 ```
-https://github.com/gmongaras/YOLOX_From_Scratch.git
+git clone https://github.com/gmongaras/YOLOX_From_Scratch.git
 ```
 
 After cloning the repo, please download the Coco data which is specified in [Coco Dataset Information](#coco-dataset-information)

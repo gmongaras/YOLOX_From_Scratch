@@ -1,7 +1,6 @@
 # TODO
 - Add L1 Loss (found in YoloX source code)
 - Model crashes after about 150 iters on 128 data points. Is this fixed with obj loss fix?
-- SimOTA for label assignments (probably only used during training)
 - Data Augmentation (Mosaic and MixUp). Don't use these augmentations for the last 15 iterations.
 
 
@@ -47,6 +46,9 @@ pip install pillow
 pip install matplotlib
 pip install opencv-python
 ```
+
+To install PyTorch with Cuda support, go to the lin below:
+https://pytorch.org/
 
 
 

@@ -20,7 +20,6 @@ import os
 
 def train():
     # Model Hyperparameters
-    k = 10                  # The max number of annotations per image
     device = "gpu"          # The device to train the model with (cpu or gpu)
     numEpochs = 300         # The number of epochs to train the model for
     batchSize = 128         # The size of each minibatch
@@ -267,7 +266,7 @@ def train():
     SimOTA_params = [q, r, extraCost, SimOta_lambda]
     
     # Create the model
-    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, nonmax_threshold, SimOTA_params)
+    model = YOLOX(device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, nonmax_threshold, SimOTA_params)
     
     # Load the model if requested
     if loadModel:

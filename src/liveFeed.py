@@ -23,7 +23,6 @@ import cv2
 
 def liveFeed():
     # Model Hyperparameters
-    k = 10                  # The max number of annotations per image
     device = "gpu"          # The device to train the model with (cpu or gpu)
     numEpochs = 300         # The number of epochs to train the model for
     warmupEpochs = 5        # Number of warmup epochs to train the model for
@@ -82,7 +81,6 @@ def liveFeed():
         data = json.load(f)
         
     # Save the loaded data as model paramters
-    k = data['k']
     ImgDim = data['ImgDim']
     numCats = data['numCats']
     category_Ids = data['category_Ids']
@@ -94,7 +92,7 @@ def liveFeed():
     with torch.no_grad():
         
         # Create the model
-        model = YOLOX(device, k, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold)
+        model = YOLOX(device, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold)
         
         # Load the model from a saved state
         model.loadModel(loadDir, loadName, paramLoadName)

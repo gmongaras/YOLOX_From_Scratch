@@ -24,7 +24,6 @@ class YOLOX(nn.Module):
     # Initialze the model
     # Inputs:
     #   device - Device to put the network on
-    #   k - The number of possible bounding boxes
     #   numEpochs - The number of epochs to train the model for
     #   batchSize - The size of each minibatch
     #   warmupEpochs - Number of warmup epochs to train the model for
@@ -48,11 +47,10 @@ class YOLOX(nn.Module):
     #   3. extraCost - The extra cost used in the center prior computation
     #   4. SimOta_lambda = Balancing factor for the foreground loss
     #   - This parameter is only required for training
-    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold, SimOTA_params=None):
+    def __init__(self, device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold, SimOTA_params=None):
         super(YOLOX, self).__init__()
         
         # Save the model paramters
-        self.k = k
         self.numEpochs = numEpochs
         self.batchSize = batchSize
         self.warmupEpochs = warmupEpochs
@@ -91,7 +89,6 @@ class YOLOX(nn.Module):
         
         # The JSON data to save when saving the model
         self.JSON_Save = {
-            "k": self.k,
             "ImgDim": self.ImgDim,
             "numCats": self.numCats,
             "strides": self.strides,
@@ -772,7 +769,6 @@ class YOLOX(nn.Module):
             data = json.load(f)
             
         # Save the loaded data to the model
-        self.k = data['k']
         self.ImgDim = data['ImgDim']
         self.numCats = data['numCats']
         self.strides = data['strides']

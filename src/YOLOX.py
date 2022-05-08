@@ -2,7 +2,6 @@ from Darknet53 import Darknet53
 from LossFunctions import LossFunctions
 from pycocotools.cocoeval import COCOeval
 import matplotlib.pyplot as plt
-from SimOTA import SimOTA
 
 import torch
 from torch import nn
@@ -10,8 +9,10 @@ import numpy as np
 import math
 import os
 import json
+import random
 
 from nonmaxSupression import soft_nonmaxSupression
+from SimOTA import SimOTA
 
 
 cpu = torch.device('cpu')
@@ -282,6 +283,11 @@ class YOLOX(nn.Module):
                 
                 # First exponentiate the w and h so that they are not negative
                 temp = torch.exp(self.exp_params[p]*regs[img, pred, 2:])
+                
+                # Don't allow the exponentiated values above half
+                # the image size to avoid the values being
+                # blown up and causing nans
+                temp = torch.clamp(temp, 0, self.ImgDim//2)
                 
                 # Move the w and h to their proper location
                 decoded.append(temp * self.strides[p])
@@ -630,6 +636,7 @@ class YOLOX(nn.Module):
                     # Get the final loss for this prediction
                     N_pos = torch.count_nonzero(reg_labels)
                     finalLoss = (1/N_pos)*cls_Loss + self.reg_weight*((1/N_pos)*reg_loss) + (1/N_pos)*obj_Loss
+                    #finalLoss = self.reg_weight*((1/N_pos)*reg_loss)
                     #finalLoss = (1/N_pos)*obj_Loss
                     totalLoss += finalLoss
                 
@@ -652,33 +659,34 @@ class YOLOX(nn.Module):
                 # Update the batch loss
                 batchLoss += totalLoss.cpu().detach().numpy().item()
             
-            # Convert the printed boundary boxes to their proper form
-            print_boxes = reg_p[2]
-            #for bbox in range(print_boxes.shape[0]):
-            #    print_boxes[bbox, 0] = print_boxes[bbox, 0]+self.FPNPos[p][math.floor(bbox/self.FPNPos[p].shape[0]), bbox%self.FPNPos[p].shape[0], 0]
-            #    print_boxes[bbox, 1] = print_boxes[bbox, 1]+self.FPNPos[p][math.floor(bbox/self.FPNPos[p].shape[0]), bbox%self.FPNPos[p].shape[0], 1]
             
+            
+            # Random predictions and labels to print
+            idx = np.random.choice(torch.where(reg_labels != 0)[0].numpy())
+            
+            
+            # Display some predictions
             print(f"Step #{epoch}      Total Batch Loss: {batchLoss}")
             print("Reg:")
-            print(f"Prediction:\n{print_boxes[reg_labels[2] == 1][:2].cpu().detach().numpy()}")
-            print(f"Ground Truth:\n{reg_targs[2][reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print(f"Prediction:\n{reg_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}")
+            print(f"Ground Truth:\n{reg_targs[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}")
             
             cls_GT = []
             for i in self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[-1]):
-                first = y_b[2]['pix_cls'][i[0], i[1]-1:i[1]+2]
-                second = y_b[2]['pix_cls'][i[0]-1, i[1]-1:i[1]+2]
-                third = y_b[2]['pix_cls'][i[0]+1, i[1]-1:i[1]+2]
+                first = y_b[idx]['pix_cls'][i[0], i[1]-1:i[1]+2]
+                second = y_b[idx]['pix_cls'][i[0]-1, i[1]-1:i[1]+2]
+                third = y_b[idx]['pix_cls'][i[0]+1, i[1]-1:i[1]+2]
                 best = torch.cat((first, second, third)).max()
                 cls_GT.append(best)
             cls_GT = torch.stack(cls_GT)
             
             print()
             print("Cls:")
-            print(f"Prediction: {torch.argmax(cls_p[2][reg_labels[2] == 1][:2], dim=1).cpu().detach().numpy()}")
-            print(f"Ground Truth: {cls_GT[reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print(f"Prediction: {torch.argmax(cls_p[idx][reg_labels[idx] == 1][:2], dim=1).cpu().detach().numpy()}")
+            print(f"Ground Truth: {cls_targs[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}")
             print()
             print("Obj:")
-            print(f"Prediction:\n{1/(1+np.exp(-obj_p[2][reg_labels[2] == 1][:2].cpu().detach().numpy()))}")
+            print(f"Prediction:\n{1/(1+np.exp(-obj_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()))}")
             print("\n")
             
             # Step the learning rate scheduler after the warmup steps

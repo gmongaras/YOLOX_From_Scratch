@@ -39,9 +39,9 @@ def train():
     
     
     # SimOta Parameters
-    q = 2               # The number of GIoU values to pick when calculating the k values
+    q = 5               # The number of GIoU values to pick when calculating the k values
                         #  - k = The number of labels (supply) each gt has
-    r = 2               # The radius used to calculate the center prior
+    r = 5               # The radius used to calculate the center prior
     extraCost = 100000  # The extra cost used in the center prior computation
     SimOta_lambda = 3   # Balancing factor for the foreground loss
     

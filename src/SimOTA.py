@@ -103,7 +103,7 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
     # Note: Each k represents the number of labels each gt gets
     
     # The supplying vector
-    s_i = np.ones(m+1)
+    s_i = np.ones(m+1, dtype=np.int16)
     
     # The sum of all k values
     k_sum = 0
@@ -141,16 +141,18 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
         
         # Get the q top IoU values (the top q predictions)
         # and sum them up to get the k for this gt
-        k = np.sort(IoU)[:q].sum()
+        k = np.sort(IoU)[-q:].sum()
         
         # Add the k value to the total k sum
         k_sum += k
         
         # Save the k value to the supplying vector
-        s_i[i]
+        # as an iteger
+        s_i[i] = int(round(k))
     
     # s_m+1, the background class takes all the rest of the labels
-    s_i[-1] = n-(m*k)
+    # k_sum is essentially k*m
+    s_i[-1] = n-round(k_sum)
     
     # 5: Create the demanding vector. Each anchor demands
     # 1 unit of supply
@@ -182,7 +184,7 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
         # box.
         loss_cp = centerPrior(A, G_reg[i], r, extraCost)
         
-        # Save the losses
+        # Save the costs
         c_cls[i] = loss_cls
         c_reg[i] = loss_giou
         c_cp[i] = loss_cp
@@ -225,7 +227,7 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
         ## a negative, not a positive
         
         # Get the k value (supply) for this gt
-        k = round(s_i[i])
+        k = s_i[i]
         
         # The cost for this gt
         cost_gt = cost[i]

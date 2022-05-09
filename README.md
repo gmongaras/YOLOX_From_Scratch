@@ -254,3 +254,5 @@ focal loss - https://towardsdatascience.com/multi-class-classification-using-foc
 nonmax suppression - https://arxiv.org/pdf/1704.04503.pdf
 
 GIoU - https://giou.stanford.edu/
+
+FCOS - https://arxiv.org/abs/1904.01355

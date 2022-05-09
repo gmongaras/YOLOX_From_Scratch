@@ -73,7 +73,7 @@ What problem is the model trying to solve?
 This model is the first YOLO (You Only Look Once) algorithm to use anchor-free detection. An anchor is basically a predefined bounding box shape that helps the network. Instead of predicting the direct bounding box, previous YOLO algorithms predicted an offset from a predefined anchor box. So, if an anchor box had length and with of 100 and 50 and the model predicted length and width of 10 and 15, the bounding box prediction would be an offset from the anchor box with a length and width of 110 and 65. More information about anchor boxes can be found [in this conversation](https://github.com/pjreddie/darknet/issues/568).
 
 What's the problem with anchor boxes?
-Anchor boxes are basically an extra parameter. How anchors should the model use? What should the sizes of the anchors be? These questions lead to more hyperparameter tuning and less diversity in the model. 
+Anchor boxes are basically extra parameters. How many anchors should the model use? What should the sizes of the anchors be? These questions lead to more hyperparameter tuning and less diversity in the model. 
 
 How does the model solve the anchor box problem?
 YOLOX simply has the model directly predict the bounding box dimensions as opposed to predicting an offset from an anchor box. To do this, it uses a decoupled head, unlike other YOLO algorithms. Below is the side by side comparison between the YOLOv3 model and the YOLOX model, which can be found in the YOLOX paper:

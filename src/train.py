@@ -38,11 +38,12 @@ def train():
     
     
     # SimOta Parameters
-    q = 5               # The number of GIoU values to pick when calculating the k values
+    q = 20              # The number of GIoU values to pick when calculating the k values
                         #  - k = The number of labels (supply) each gt has
     r = 5               # The radius used to calculate the center prior
     extraCost = 100000  # The extra cost used in the center prior computation
     SimOta_lambda = 3   # Balancing factor for the foreground loss
+    # Note: The best values for q, r, and lambda are chosen above
     
     
     # Model Save Parameters
@@ -266,6 +267,7 @@ def train():
     SimOTA_params = [q, r, extraCost, SimOta_lambda]
     
     # Create the model
+    #torch.autograd.set_detect_anomaly(True)
     model = YOLOX(device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, nonmax_threshold, SimOTA_params)
     
     # Load the model if requested

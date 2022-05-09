@@ -264,6 +264,9 @@ class YOLOX(nn.Module):
         # The new predictions
         new_preds = []
         
+        # Flatten the FPN Positions
+        FPNPos_flat = self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2])
+        
         # Iterate over all images
         for img in range(0, regs.shape[0]):
             # Predictions for the image
@@ -276,7 +279,7 @@ class YOLOX(nn.Module):
                 
                 # Move the x and y values to their proper location
                 # on the original image
-                decoded.append(regs[img, pred, 0:2] + self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2])[pred])
+                decoded.append(regs[img, pred, 0:2] + FPNPos_flat[pred])
                 
                 # First exponentiate the w and h so that they are not negative
                 temp = torch.exp(self.exp_params[p]*regs[img, pred, 2:])
@@ -570,45 +573,50 @@ class YOLOX(nn.Module):
                         obj = torch.squeeze(obj_p[b_num])
                         
                         # Don't calculate the gradient when finding the GT values
-                        with torch.no_grad():
-                            # Get all ground truth bounding boxes in this image
-                            GT_bbox = torch.tensor(y_b[b_num]["bbox"], device=cpu, requires_grad=False)
+                        #with torch.no_grad():
+                        # Get all ground truth bounding boxes in this image
+                        GT_bbox = torch.tensor(y_b[b_num]["bbox"], device=cpu, requires_grad=False)
+                        
+                        # The best GIoU values for each predicted bounding box
+                        best_GIoU = torch.negative(torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float))
+                        
+                        # Iterate over all GT boxes
+                        for box in GT_bbox:
                             
-                            # The best GIoU values for each predicted bounding box
-                            best_GIoU = torch.negative(torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float))
+                            # Get the IoU between the predicted boxes and
+                            # the current GT box
+                            _, IoU_val = self.losses.IoU(reg_p[b_num], torch.unsqueeze(box, dim=0))
                             
-                            # Iterate over all GT boxes
-                            for box in GT_bbox:
-                                # Broadcast the GT box
-                                box = torch.broadcast_to(box, reg_p[b_num].shape).to(cpu).clone()
-                                
-                                # For those boxes with a GT box, use those boxes instead
-                                # of the closest box
-                                box[reg_targs[b_num, :, 0] != -1] = reg_targs[b_num].long()[torch.where(reg_targs[b_num, :, 0] != -1)[0]]
-                                
-                                # Get the predicted bounding boxes. Note, these have
-                                # already been projected to the original image
-                                pred_bbox = reg_p[b_num].to(cpu)
-                                
-                                # Get the GIoU between the predicted boudning boxes
-                                # and the current bounding box in iteration
-                                # Note: we don't want the loss since the loss
-                                # is higher when the GIoU is lower since this is
-                                # basically the opposite of the value
-                                _, all_GIoU = self.losses.GIoU(pred_bbox, box)
-                                
-                                # Get the max GIoU value for each bounding box
-                                # between the new GIoU values and the current
-                                # saved ones. Save the max values
-                                #best_GIoU = torch.minimum(best_GIoU, 1/(1+torch.exp(-5*all_GIoU)))
-                                #best_GIoU = torch.minimum(best_GIoU, torch.sigmoid(all_GIoU_loss))
-                                best_GIoU = torch.maximum(best_GIoU, torch.sigmoid(all_GIoU))
+                            # Broadcast the GT box
+                            # box = torch.broadcast_to(box, reg_p[b_num].shape).to(cpu).clone()
+                            
+                            # # For those boxes with a GT box, use those boxes instead
+                            # # of the closest box
+                            # box[reg_targs[b_num, :, 0] != -1] = reg_targs[b_num].long()[torch.where(reg_targs[b_num, :, 0] != -1)[0]]
+                            
+                            # # Get the predicted bounding boxes. Note, these have
+                            # # already been projected to the original image
+                            # pred_bbox = reg_p[b_num].to(cpu)
+                            
+                            # # Get the GIoU between the predicted boudning boxes
+                            # # and the current bounding box in iteration
+                            # # Note: we don't want the loss since the loss
+                            # # is higher when the GIoU is lower since this is
+                            # # basically the opposite of the value
+                            # _, all_GIoU = self.losses.GIoU(pred_bbox, box)
+                            
+                            # Get the max GIoU value for each bounding box
+                            # between the new GIoU values and the current
+                            # saved ones. Save the max values
+                            #best_GIoU = torch.minimum(best_GIoU, 1/(1+torch.exp(-5*all_GIoU)))
+                            #best_GIoU = torch.minimum(best_GIoU, torch.sigmoid(all_GIoU_loss))
+                            best_GIoU = torch.maximum(best_GIoU, IoU_val)
                         
                         # Get the loss between the batch elements
                         # Note: We don't just want the positively
                         # labelled ones since we want the model to learn
                         # both bad and good predictions
-                        obj_Loss += self.losses.BinaryCrossEntropy(obj.to(cpu), best_GIoU)
+                        obj_Loss += self.losses.BinaryCrossEntropy(obj[reg_labels[b_num] != 0].to(cpu), best_GIoU[reg_labels[b_num] != 0])
                         #iouLoss += self.losses.BinaryCrossEntropy(obj[reg_labels[b_num] == 1].to(cpu), GTobj[reg_labels[b_num] == 1])
                         
                         
@@ -631,7 +639,7 @@ class YOLOX(nn.Module):
                     ### Final Loss ###
                     
                     # Get the final loss for this prediction
-                    N_pos = torch.count_nonzero(reg_labels)
+                    N_pos = max(torch.count_nonzero(reg_labels).item(), 1)
                     finalLoss = (1/N_pos)*cls_Loss + self.reg_weight*((1/N_pos)*reg_loss) + (1/N_pos)*obj_Loss
                     #finalLoss = self.reg_weight*((1/N_pos)*reg_loss)
                     #finalLoss = (1/N_pos)*obj_Loss
@@ -657,6 +665,12 @@ class YOLOX(nn.Module):
                 batchLoss += totalLoss.cpu().detach().numpy().item()
             
             
+            
+            # If there was somehow no positive values, then
+            # skip this iteration
+            if torch.where(reg_labels != 0)[0].numpy().shape[0] == 0:
+                print("No positive anchors... Skipping output\n\n")
+                continue
             
             # Random predictions and labels to print
             idx = np.random.choice(torch.where(reg_labels != 0)[0].numpy())

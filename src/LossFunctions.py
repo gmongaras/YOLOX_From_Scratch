@@ -179,3 +179,51 @@ class LossFunctions():
         
         # Create a tensor of the losses and return it
         return lossVals, GIoU
+
+    
+    
+    # Get the IoU loss given two bounding boxes
+    # Inputs:
+    #   pred - A set of predicted bounding boxes with 4 elements:
+    #     1. top-left x coordinate of the bounding box
+    #     2. top-left y coordinate of the bounding box
+    #     3. heihgt of the bounding box
+    #     4. width of the bounding box
+    #   Y - A set of ground truth boudning boxes with the same shape
+    #       as the predicted bounding boxes
+    #   The tensors have shape: (numImages, 4)
+    # Outputs:
+    #   IoU_loss - A tensor where each value is the loss for that
+    #               image (numImages)
+    #   IoU - A tensor where each value is the IoU value for that
+    #               image (numImages). Note, this is not the loss value
+    def IoU(self, pred, GT):
+        # Ensure the shapes are the same
+        if len(pred.shape) > len(GT.shape):
+            pred = torch.unsqueeze(pred, dim=0)
+        elif len(pred.shape) < len(GT.shape):
+            GT = torch.unsqueeze(GT, dim=0)
+        
+        # Get the (x, y) coordinates of the intersection
+        xA = torch.maximum(pred[:, 0], GT[:, 0])
+        yA = torch.maximum(pred[:, 1], GT[:, 1])
+        xB = torch.minimum(pred[:, 0]+pred[:, 2], GT[:, 0]+GT[:, 2])
+        yB = torch.minimum(pred[:, 1]+pred[:, 3], GT[:, 1]+GT[:, 3])
+        
+        # Get the area of the intersection
+        intersectionArea = torch.maximum(torch.tensor(0), xB - xA + 1) * torch.maximum(torch.tensor(0), yB - yA + 1)
+        
+        # Compute the area of both rectangles
+        areaA = (pred[:, 2]+1)*(pred[:, 3]+1)
+        areaB = (GT[:, 2]+1)*(GT[:, 3]+1)
+        
+        # Get the union of the rectangles
+        union = areaA + areaB - intersectionArea
+        
+        # Compute the intersection over union
+        IoU = intersectionArea/union
+        
+        # Get the IoU loss
+        IoU_loss = 1-IoU
+        
+        return IoU_loss, IoU

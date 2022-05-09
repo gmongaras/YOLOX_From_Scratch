@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import math
 
 
 
@@ -31,17 +32,17 @@ def convertNumpy(item):
 #   where each value is the center prior value of that anchor
 def centerPrior(A, G_box, r, extraCost):
     ## Center Prior selects the r**2 closest anchors according to the
-    ## center distance distance between the anchors and gts. Those anchors
-    ## that are in the radius are no subject to any extra cost, but those
+    ## center distance between the anchors and gts. Those anchors
+    ## that are in the radius are not subject to any extra cost, but those
     ## anchors outside the radius are assigned extra cost to avoid
     ## having them be labelled as positive anchors for this gt.
     
-    # Get the center location of the boudning box
+    # Get the center location of the ground truth boudning box
     center = (G_box[0]+(G_box[2]//2), G_box[1]+(G_box[3]//2))
     
     # Get the difference between the center locations in A and the
     # center location of the gt bounding box
-    diff = np.abs(A-center)
+    diff = A-center
     
     # Use the distance formula to get the distance from the
     # gt center location for each anchor
@@ -50,7 +51,11 @@ def centerPrior(A, G_box, r, extraCost):
     # Sort the distances and get the opposite of the 
     # r**2 smallest distances which will be subject to a
     # greater cost
-    idx_neg = np.argsort(dist)[(r**2):]
+    #idx_neg = np.argsort(dist)[(r**2):]
+    
+    # Get the indices of the distances which are greater
+    # than r**2 meaning the anchor is outside the radius
+    idx_neg = np.where(dist > r**2)
     
     # Array of zeros corresponding to the center prior of each anchor
     c_cp = np.zeros(A.shape[0])

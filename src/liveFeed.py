@@ -39,11 +39,11 @@ def liveFeed():
     
     
     # Bounding Box Filtering Parameters
-    removal_threshold = 0.75# The threshold of predictions to remove if the
+    removal_threshold = 0.5 # The threshold of predictions to remove if the
                             # confidence in that prediction is below this value
-    score_thresh = 0.7      # The score threshold to remove boxes. If the score is
+    score_thresh = 0.5      # The score threshold to remove boxes. If the score is
                             # less than this value, remove it
-    IoU_thresh = 0.1        # The IoU threshold to update scores. If the IoU is
+    IoU_thresh = 0.15       # The IoU threshold to update scores. If the IoU is
                             # greater than this value, update it's score
     
     

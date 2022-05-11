@@ -2,7 +2,6 @@ from Darknet53 import Darknet53
 from LossFunctions import LossFunctions
 from pycocotools.cocoeval import COCOeval
 import matplotlib.pyplot as plt
-from SimOTA import SimOTA
 
 import torch
 from torch import nn
@@ -10,8 +9,10 @@ import numpy as np
 import math
 import os
 import json
+import random
 
 from nonmaxSupression import soft_nonmaxSupression
+from SimOTA import SimOTA
 
 
 cpu = torch.device('cpu')
@@ -23,7 +24,6 @@ class YOLOX(nn.Module):
     # Initialze the model
     # Inputs:
     #   device - Device to put the network on
-    #   k - The number of possible bounding boxes
     #   numEpochs - The number of epochs to train the model for
     #   batchSize - The size of each minibatch
     #   warmupEpochs - Number of warmup epochs to train the model for
@@ -39,13 +39,22 @@ class YOLOX(nn.Module):
     #   category_Ids - Dictionary mapping categories to their ids
     #   removal_threshold - The threshold of predictions to remove if the
     #                       confidence in that prediction is below this value
+    #   score_thresh - The score threshold to remove boxes. If the score is
+    #                  less than this value, remove it
+    #   IoU_thresh - The IoU threshold to update scores. If the IoU is
+    #                greater than this value, update it's score
     #   nonmax_threshold - The threshold of predictions to remove if the
     #                       IoU is under this threshold
-    def __init__(self, device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold):
+    #   SimOTA_params - Paramters used for the SimOta calculation:
+    #   1. q - The number of GIoU values to pick when calculating the k values
+    #   2. r - The radius used to calculate the center prior
+    #   3. extraCost - The extra cost used in the center prior computation
+    #   4. SimOta_lambda = Balancing factor for the foreground loss
+    #   - This parameter is only required for training
+    def __init__(self, device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params=None):
         super(YOLOX, self).__init__()
         
         # Save the model paramters
-        self.k = k
         self.numEpochs = numEpochs
         self.batchSize = batchSize
         self.warmupEpochs = warmupEpochs
@@ -58,7 +67,9 @@ class YOLOX(nn.Module):
         self.reg_weight = reg_weight
         self.category_Ids = category_Ids
         self.removal_threshold = removal_threshold
-        self.nonmax_threshold = nonmax_threshold
+        self.score_thresh = score_thresh
+        self.IoU_thresh = IoU_thresh
+        self.SimOTA_params = SimOTA_params
         
         # Trainable paramters for the exponential function which the
         # regression values are sent through
@@ -83,7 +94,6 @@ class YOLOX(nn.Module):
         
         # The JSON data to save when saving the model
         self.JSON_Save = {
-            "k": self.k,
             "ImgDim": self.ImgDim,
             "numCats": self.numCats,
             "strides": self.strides,
@@ -259,6 +269,9 @@ class YOLOX(nn.Module):
         # The new predictions
         new_preds = []
         
+        # Flatten the FPN Positions
+        FPNPos_flat = self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2])
+        
         # Iterate over all images
         for img in range(0, regs.shape[0]):
             # Predictions for the image
@@ -271,10 +284,15 @@ class YOLOX(nn.Module):
                 
                 # Move the x and y values to their proper location
                 # on the original image
-                decoded.append(regs[img, pred, 0:2] + self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2])[pred])
+                decoded.append(regs[img, pred, 0:2] + FPNPos_flat[pred])
                 
                 # First exponentiate the w and h so that they are not negative
                 temp = torch.exp(self.exp_params[p]*regs[img, pred, 2:])
+                
+                # Don't allow the exponentiated values above half
+                # the image size to avoid the values being
+                # blown up and causing nans
+                temp = torch.clamp(temp, 0, self.ImgDim//2)
                 
                 # Move the w and h to their proper location
                 decoded.append(temp * self.strides[p])
@@ -375,10 +393,16 @@ class YOLOX(nn.Module):
                     # this FPN level. These will change based
                     # on how good each prediction is
                     reg_labels = reg_labels_b[p]
+                    reg_labels = torch.zeros(reg_labels.shape)
                     
                     # Get the regression targets for
                     # this FPN level
                     reg_targs = reg_targets_b[p]
+                    reg_targs = torch.negative(torch.ones(reg_targs.shape))
+                    
+                    # The ground truth class for each anchor initialized
+                    # as the background class
+                    cls_targs = torch.zeros(reg_labels.shape, dtype=torch.long, requires_grad=False, device=cpu)
                     
                     # Denormalize/move the predicted bounding boxes
                     # so they are in the correct location
@@ -389,7 +413,39 @@ class YOLOX(nn.Module):
                     #         reg_p[:, x_mov, y_mov, 1] += pos[x_mov, y_mov, 1]
                     
                     
+                    
+                    
                     ### Positive Filtering
+                    
+                    # Get the stored SimOta paramters
+                    q = self.SimOTA_params[0]
+                    r = self.SimOTA_params[1]
+                    extraCost = self.SimOTA_params[2]
+                    SimOta_lambda = self.SimOTA_params[3]
+                    
+                    # Iterate over all images
+                    for img in range(0, len(y_b)):
+                        
+                        # Use SimOTA to filter the anchors for that image
+                        # and get the indices for the positive anchors
+                        # and the ground truths for those anchors
+                        pos_idx = SimOTA(y_b[img]['bbox'], y_b[img]['cls'], self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2]), cls_p[img], reg_p[img], q, r, extraCost, SimOta_lambda, self.losses)
+                    
+                        # Iterate over all positive labels and store them
+                        for gt_num in range(0, len(pos_idx)):
+                            
+                            gt = pos_idx[gt_num]
+                            
+                            # Iterate over all positive labels for this gt
+                            for pos in gt:
+                                # Assign it as a positive lablel
+                                reg_labels[img][pos] = 1
+                                
+                                # Assign the bounding box
+                                reg_targs[img][pos] = torch.tensor(y_b[img]['bbox'][gt_num])
+                                
+                                # Assign the class
+                                cls_targs[img][pos] = y_b[img]['cls'][gt_num]
                     
                     #reg_labels = self.filterPos(reg_p, p, y_b)
                     
@@ -465,35 +521,43 @@ class YOLOX(nn.Module):
                     
                     ### Class Loss
                     
-                    # Get the ground truth value for each prediction as a one-hot vector
-                    GT = torch.zeros(list(cls_p.shape[:-1])+[self.numCats+1])
+                    # # Get the ground truth value for each prediction as a one-hot vector
+                    # GT = torch.zeros(list(cls_p.shape[:-1])+[self.numCats+1])
                     
-                    # Iterate over all images
-                    temp = self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2])
-                    for b_num in range(0, cls_p.shape[0]): # Iterate over all batch elements
-                        # Iterate over all FPN positions
-                        for pos in range(0, self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1]):
-                            # Current coords mapping back to the original image
-                            coord = temp[pos]
+                    # # Iterate over all images
+                    # temp = self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[2])
+                    # for b_num in range(0, cls_p.shape[0]): # Iterate over all batch elements
+                    #     # Iterate over all FPN positions
+                    #     for pos in range(0, self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1]):
+                    #         # Current coords mapping back to the original image
+                    #         coord = temp[pos]
                             
-                            # Is there a class other than the background class (0) in
-                            # a 3x3 area?
-                            first = y_b[b_num]['pix_cls'][coord[0], coord[1]-1:coord[1]+2]
-                            second = y_b[b_num]['pix_cls'][coord[0]+1, coord[1]-1:coord[1]+2]
-                            third = y_b[b_num]['pix_cls'][coord[0]-1, coord[1]-1:coord[1]+2]
+                    #         # Is there a class other than the background class (0) in
+                    #         # a 3x3 area?
+                    #         first = y_b[b_num]['pix_cls'][coord[0], coord[1]-1:coord[1]+2]
+                    #         second = y_b[b_num]['pix_cls'][coord[0]+1, coord[1]-1:coord[1]+2]
+                    #         third = y_b[b_num]['pix_cls'][coord[0]-1, coord[1]-1:coord[1]+2]
                             
-                            # Get the possible classes
-                            pos_cls = torch.cat((first, second, third))
+                    #         # Get the possible classes
+                    #         pos_cls = torch.cat((first, second, third))
                             
-                            # Pick the highest class and store it as a 1 in a one-hot vector
-                            GT[b_num, pos][torch.max(pos_cls)] = 1
+                    #         # Pick the highest class and store it as a 1 in a one-hot vector
+                    #         GT[b_num, pos][torch.max(pos_cls)] = 1
                     
-                    # Send the data through the Focal Loss function
-                    #cls_Loss = self.losses.FocalLoss(cls_p.to(cpu), GT)
+                    # # Send the data through the Focal Loss function
+                    # #cls_Loss = self.losses.FocalLoss(cls_p.to(cpu), GT)
                     
-                    # Send the positive data through the BCE loss function
-                    cls_Loss = self.losses.BinaryCrossEntropy(cls_p[reg_labels != 0].to(cpu), GT[reg_labels != 0])
+                    # # Send the positive data through the BCE loss function
+                    # cls_Loss = self.losses.BinaryCrossEntropy(cls_p[reg_labels != 0].to(cpu), GT[reg_labels != 0])
                     #cls_Loss = nn.BCEWithLogitsLoss(reduction='sum')(cls_p.to(cpu)[reg_labels != 0], GT[reg_labels != 0])
+                    
+                    
+                    
+                    # One hot encode the targets
+                    cls_targs_hot = nn.functional.one_hot(cls_targs, cls_p.shape[-1])
+                    
+                    # Get the loss value
+                    cls_Loss = self.losses.BinaryCrossEntropy(cls_p[reg_labels != 0].to(cpu), cls_targs_hot[reg_labels != 0].float())
                     
                     
                     
@@ -514,40 +578,50 @@ class YOLOX(nn.Module):
                         obj = torch.squeeze(obj_p[b_num])
                         
                         # Don't calculate the gradient when finding the GT values
-                        with torch.no_grad():
-                            # Get all ground truth bounding boxes in this image
-                            GT_bbox = torch.tensor(y_b[b_num]["bbox"], device=cpu, requires_grad=False)
+                        #with torch.no_grad():
+                        # Get all ground truth bounding boxes in this image
+                        GT_bbox = torch.tensor(y_b[b_num]["bbox"], device=cpu, requires_grad=False)
+                        
+                        # The best GIoU values for each predicted bounding box
+                        best_GIoU = torch.negative(torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float))
+                        
+                        # Iterate over all GT boxes
+                        for box in GT_bbox:
                             
-                            # The best GIoU values for each predicted bounding box
-                            best_GIoU = torch.negative(torch.ones(obj.shape, requires_grad=False, device=cpu, dtype=torch.float))
+                            # Get the IoU between the predicted boxes and
+                            # the current GT box
+                            _, IoU_val = self.losses.IoU(reg_p[b_num], box)
                             
-                            # Iterate over all GT boxes
-                            for box in GT_bbox:
-                                # Broadcast the GT box
-                                box = torch.broadcast_to(box, reg_p[b_num].shape).to(cpu).clone()
-                                
-                                # For those boxes with a GT box, use those boxes instead
-                                # of the closest box
-                                box[reg_targs[b_num, :, 0] != -1] = reg_targs[b_num].long()[torch.where(reg_targs[b_num, :, 0] != -1)[0]]
-                                
-                                # Get the predicted bounding boxes. Note, these have
-                                # already been projected to the original image
-                                pred_bbox = reg_p[b_num].to(cpu)
-                                
-                                # Get the GIoU between the predicted boudning boxes
-                                # and the current bounding box in iteration
-                                _, all_GIoU = self.losses.GIoU(pred_bbox, box)
-                                
-                                # Get the max GIoU loss for each bounding box
-                                # between the new GIoU values and the current
-                                # saved ones. Save the max values
-                                best_GIoU = torch.maximum(best_GIoU, 1/(1+torch.exp(-5*all_GIoU)))
+                            # Broadcast the GT box
+                            # box = torch.broadcast_to(box, reg_p[b_num].shape).to(cpu).clone()
+                            
+                            # # For those boxes with a GT box, use those boxes instead
+                            # # of the closest box
+                            # box[reg_targs[b_num, :, 0] != -1] = reg_targs[b_num].long()[torch.where(reg_targs[b_num, :, 0] != -1)[0]]
+                            
+                            # # Get the predicted bounding boxes. Note, these have
+                            # # already been projected to the original image
+                            # pred_bbox = reg_p[b_num].to(cpu)
+                            
+                            # # Get the GIoU between the predicted boudning boxes
+                            # # and the current bounding box in iteration
+                            # # Note: we don't want the loss since the loss
+                            # # is higher when the GIoU is lower since this is
+                            # # basically the opposite of the value
+                            # _, all_GIoU = self.losses.GIoU(pred_bbox, box)
+                            
+                            # Get the max GIoU value for each bounding box
+                            # between the new GIoU values and the current
+                            # saved ones. Save the max values
+                            #best_GIoU = torch.minimum(best_GIoU, 1/(1+torch.exp(-5*all_GIoU)))
+                            #best_GIoU = torch.minimum(best_GIoU, torch.sigmoid(all_GIoU_loss))
+                            best_GIoU = torch.maximum(best_GIoU, IoU_val)
                         
                         # Get the loss between the batch elements
                         # Note: We don't just want the positively
                         # labelled ones since we want the model to learn
                         # both bad and good predictions
-                        obj_Loss += self.losses.BinaryCrossEntropy(obj.to(cpu), best_GIoU)
+                        obj_Loss += self.losses.BinaryCrossEntropy(obj[reg_labels[b_num] != 0].to(cpu), best_GIoU[reg_labels[b_num] != 0])
                         #iouLoss += self.losses.BinaryCrossEntropy(obj[reg_labels[b_num] == 1].to(cpu), GTobj[reg_labels[b_num] == 1])
                         
                         
@@ -567,28 +641,17 @@ class YOLOX(nn.Module):
                     
                     
                     
-                    # Use SimOTA to get label assignments
-                    #SimOTA(y_b, )
-                    
-                    
-                    
-                    
                     ### Final Loss ###
                     
                     # Get the final loss for this prediction
-                    N_pos = torch.count_nonzero(reg_labels)
+                    N_pos = max(torch.count_nonzero(reg_labels).item(), 1)
                     finalLoss = (1/N_pos)*cls_Loss + self.reg_weight*((1/N_pos)*reg_loss) + (1/N_pos)*obj_Loss
+                    #finalLoss = self.reg_weight*((1/N_pos)*reg_loss)
                     #finalLoss = (1/N_pos)*obj_Loss
                     totalLoss += finalLoss
                 
                 
                 ### Updating the model
-                #if epoch%20 == 0:
-                #    plt.imshow(torch.argmax(cls_p[0], dim=-1).reshape(int(cls_p[0].shape[0]**0.5), int(cls_p[0].shape[0]**0.5)).cpu().detach().numpy(), interpolation='nearest')
-                #    plt.show()
-                #if epoch%5 == 0:
-                #    plt.imshow(iou_p[0].cpu().detach().numpy(), interpolation='nearest')
-                #    plt.show()
                 
                 # Backpropogate the loss
                 totalLoss.backward()
@@ -606,33 +669,40 @@ class YOLOX(nn.Module):
                 # Update the batch loss
                 batchLoss += totalLoss.cpu().detach().numpy().item()
             
-            # Convert the printed boundary boxes to their proper form
-            print_boxes = reg_p[2]
-            #for bbox in range(print_boxes.shape[0]):
-            #    print_boxes[bbox, 0] = print_boxes[bbox, 0]+self.FPNPos[p][math.floor(bbox/self.FPNPos[p].shape[0]), bbox%self.FPNPos[p].shape[0], 0]
-            #    print_boxes[bbox, 1] = print_boxes[bbox, 1]+self.FPNPos[p][math.floor(bbox/self.FPNPos[p].shape[0]), bbox%self.FPNPos[p].shape[0], 1]
             
+            
+            # If there was somehow no positive values, then
+            # skip this iteration
+            if torch.where(reg_labels != 0)[0].numpy().shape[0] == 0:
+                print("No positive anchors... Skipping output\n\n")
+                continue
+            
+            # Random predictions and labels to print
+            idx = np.random.choice(torch.where(reg_labels != 0)[0].numpy())
+            
+            
+            # Display some predictions
             print(f"Step #{epoch}      Total Batch Loss: {batchLoss}")
             print("Reg:")
-            print(f"Prediction:\n{print_boxes[reg_labels[2] == 1][:2].cpu().detach().numpy()}")
-            print(f"Ground Truth:\n{reg_targs[2][reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print(f"Prediction:\n{reg_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}")
+            print(f"Ground Truth:\n{reg_targs[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}")
             
             cls_GT = []
             for i in self.FPNPos[p].reshape(self.FPNPos[p].shape[0]*self.FPNPos[p].shape[1], self.FPNPos[p].shape[-1]):
-                first = y_b[2]['pix_cls'][i[0], i[1]-1:i[1]+2]
-                second = y_b[2]['pix_cls'][i[0]-1, i[1]-1:i[1]+2]
-                third = y_b[2]['pix_cls'][i[0]+1, i[1]-1:i[1]+2]
+                first = y_b[idx]['pix_cls'][i[0], i[1]-1:i[1]+2]
+                second = y_b[idx]['pix_cls'][i[0]-1, i[1]-1:i[1]+2]
+                third = y_b[idx]['pix_cls'][i[0]+1, i[1]-1:i[1]+2]
                 best = torch.cat((first, second, third)).max()
                 cls_GT.append(best)
             cls_GT = torch.stack(cls_GT)
             
             print()
             print("Cls:")
-            print(f"Prediction: {torch.argmax(cls_p[2][reg_labels[2] == 1][:2], dim=1).cpu().detach().numpy()}")
-            print(f"Ground Truth: {cls_GT[reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print(f"Prediction: {torch.argmax(cls_p[idx][reg_labels[idx] == 1][:2], dim=1).cpu().detach().numpy()}")
+            print(f"Ground Truth: {cls_targs[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}")
             print()
             print("Obj:")
-            print(f"Prediction:\n{obj_p[2][reg_labels[2] == 1][:2].cpu().detach().numpy()}")
+            print(f"Prediction:\n{1/(1+np.exp(-obj_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()))}")
             print("\n")
             
             # Step the learning rate scheduler after the warmup steps
@@ -718,7 +788,6 @@ class YOLOX(nn.Module):
             data = json.load(f)
             
         # Save the loaded data to the model
-        self.k = data['k']
         self.ImgDim = data['ImgDim']
         self.numCats = data['numCats']
         self.strides = data['strides']
@@ -855,7 +924,7 @@ class YOLOX(nn.Module):
         
         # Apply nonmax supression to remove 
         # predictions that are more liekly to be correct
-        reg_preds_f, obj_preds_f, cls_preds_f = soft_nonmaxSupression(reg_preds_f, obj_preds_f, cls_preds_f, self.nonmax_threshold)
+        reg_preds_f, obj_preds_f, cls_preds_f = soft_nonmaxSupression(reg_preds_f, obj_preds_f, cls_preds_f, self.score_thresh, self.IoU_thresh, self.losses.IoU)
                     
         # Return the predictions
         return cls_preds_f, reg_preds_f, obj_preds_f

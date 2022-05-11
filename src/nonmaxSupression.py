@@ -1,4 +1,5 @@
 import numpy as np
+from torch import tensor
 
 
 
@@ -9,15 +10,19 @@ import numpy as np
 # Remove the overlapping boxes around objects to get a more
 # clutter free space and the "best" predictions
 # Inputs:
-#   B - The predicted boudning boxes to analyze of shape (x, y, w, h)
+#   B - The predicted bounding boxes to analyze of shape (x, y, w, h)
 #   S - The confidence score for each bounding box
 #   C - The classes for each bounding box
-#   N - The IoU threshold to remove boxes
+#   score_thresh - The score threshold to remove boxes. If the score is
+#                  less than this value, remove it
+#   IoU_thresh - The IoU threshold to update scores. If the IoU is
+#                greater than this value, update it's score
+#   IoU_function - Function to calculate the IoU
 # Outputs:
 #   D - The predicted bounding boxes we want to keep
-#   S - The confidence score for the predicted bounding boxes to keep
-#   C - The classes for the predicted boudning boxes to keep
-def soft_nonmaxSupression(B, S, C, N):
+#   scores - The confidence score for the predicted bounding boxes to keep
+#   classes - The classes for the predicted boudning boxes to keep
+def soft_nonmaxSupression(B, S, C, score_thresh, IoU_thresh, IoU_function):
     # The bounding boxes we want to keep
     D = []
     scores = []
@@ -66,40 +71,21 @@ def soft_nonmaxSupression(B, S, C, N):
             # The indices to remove after iterating over every box
             idx_to_remove = []
             
-            # Iterate over every bounding box left in the
-            # B array
-            for bbox_num in range(0, b.shape[0]):
-                bbox = b[bbox_num]
-                
-                ## Get the IoU between the bounding box and
-                ## the bounding box with the highest confidence (M)
-
-                # Get the (x, y) coordinates of the intersection
-                xA = np.maximum(M[0], bbox[0])
-                yA = np.maximum(M[1], bbox[1])
-                xB = np.maximum(M[0]+M[2], bbox[0]+bbox[2])
-                yB = np.maximum(M[1]+M[3], bbox[1]+bbox[3])
-                
-                # Get the area of the intersection
-                intersectionArea = np.maximum(0, xB - xA + 1) * np.maximum(0, yB - yA + 1)
-                
-                # Compute the area of both rectangles
-                areaA = (M[2]+1)*(M[3]+1)
-                areaB = (bbox[2]+1)*(bbox[3]+1)
-                
-                # Get the union of the rectangles
-                union = areaA + areaB - intersectionArea
-                
-                # Compute the intersection over union
-                IoU = intersectionArea/union
-                
-                # Save the idx to remove the box if the IoU 
-                # is greater than the threshold
-                if IoU > N:
-                    idx_to_remove.append(bbox_num)
-                # If the IoU is not greater, update the confidence score
-                else:
-                    s[bbox_num] = s[bbox_num]*np.exp(-((IoU)**2)/mean_scores)
+            # Get the IoU between the GT (M) and all bounding
+            # boxes (b)
+            _, IoU = IoU_function(tensor(M), tensor(b))
+            IoU = IoU.numpy()
+            
+            # If the IoU is greater than the set threshold, update
+            # the score of that bounding box
+            idxs = np.argwhere(IoU > IoU_thresh)
+            if s.shape[-1] == 1 and len(s.shape) > 1:
+                s = s.squeeze(-1)
+            s[idxs] = s[idxs]*np.exp(-((IoU[idxs])**2)/mean_scores)
+            
+            # Save the idx of the box to remove if the new score 
+            # is less than the threshold
+            idx_to_remove = np.squeeze(np.argwhere(s < score_thresh))
             
             # Remove the specified indices
             b = np.delete(b, idx_to_remove, axis=0)

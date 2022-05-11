@@ -224,7 +224,7 @@ class Darknet53(nn.Module):
         p2 = [p2_cls, p2_reg, p2_IoU]
         
         
-        # Get the highest FPN level predictions (1024 channels)
+        # Get the highest FPN level predictions (256 channels)
         p3 = self.head3_1x1(p3)
         p3_cls = self.head3_cls(p3)
         p3 = self.head3_reg_base(p3)

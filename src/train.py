@@ -20,7 +20,6 @@ import os
 
 def train():
     # Model Hyperparameters
-    k = 10                  # The max number of annotations per image
     device = "gpu"          # The device to train the model with (cpu or gpu)
     numEpochs = 300         # The number of epochs to train the model for
     batchSize = 128         # The size of each minibatch
@@ -32,10 +31,25 @@ def train():
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
     ImgDim = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
-    removal_threshold = 0.8 # The threshold of predictions to remove if the
+    
+    
+    
+    # Bounding Box Filtering Parameters
+    removal_threshold = 0.5 # The threshold of predictions to remove if the
                             # confidence in that prediction is below this value
-    nonmax_threshold = 0.1  # The threshold of predictions to remove if the
-                            # IoU is under this threshold
+    score_thresh = 0.5      # The score threshold to remove boxes. If the score is
+                            # less than this value, remove it
+    IoU_thresh = 0.25       # The IoU threshold to update scores. If the IoU is
+                            # greater than this value, update it's score
+    
+    
+    # SimOta Parameters
+    q = 20              # The number of GIoU values to pick when calculating the k values
+                        #  - k = The number of labels (supply) each gt has
+    r = 5               # The radius used to calculate the center prior
+    extraCost = 100000  # The extra cost used in the center prior computation
+    SimOta_lambda = 3   # Balancing factor for the foreground loss
+    # Note: The best values for q, r, and lambda are chosen above
     
     
     # Model Save Parameters
@@ -255,8 +269,12 @@ def train():
     # File saving parameters
     saveParams = [saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite]
     
+    # SimOta Paramters
+    SimOTA_params = [q, r, extraCost, SimOta_lambda]
+    
     # Create the model
-    model = YOLOX(device, k, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, nonmax_threshold)
+    #torch.autograd.set_detect_anomaly(True)
+    model = YOLOX(device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params)
     
     # Load the model if requested
     if loadModel:

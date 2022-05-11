@@ -23,23 +23,28 @@ import cv2
 
 def liveFeed():
     # Model Hyperparameters
-    k = 10                  # The max number of annotations per image
     device = "gpu"          # The device to train the model with (cpu or gpu)
     numEpochs = 300         # The number of epochs to train the model for
     warmupEpochs = 5        # Number of warmup epochs to train the model for
     lr_init = 0.01          # Initial learning rate
     weightDecay = 0.0005    # Amount to decay weights over time
     momentum = 0.9          # Momentum of the SGD optimizer
-    SPPDim = 256            # The height and width dimension to convert FPN 
+    ImgDim = 256            # The height and width dimension to convert FPN 
                             # (Feature Pyramid Network) encodings to
     numCats = 3             # The number of categories to predict from
     reg_consts = (          # The contraints on the regression size
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
-    removal_threshold = 0.5 # The threshold of predictions to remove if the
+    
+    
+    
+    # Bounding Box Filtering Parameters
+    removal_threshold = 0.75# The threshold of predictions to remove if the
                             # confidence in that prediction is below this value
-    nonmax_threshold = 0.1  # The threshold of predictions to remove if the
-                            # IoU is over this threshold
+    score_thresh = 0.7      # The score threshold to remove boxes. If the score is
+                            # less than this value, remove it
+    IoU_thresh = 0.1        # The IoU threshold to update scores. If the IoU is
+                            # greater than this value, update it's score
     
     
     # Model Loading Parameters
@@ -82,7 +87,6 @@ def liveFeed():
         data = json.load(f)
         
     # Save the loaded data as model paramters
-    k = data['k']
     ImgDim = data['ImgDim']
     numCats = data['numCats']
     category_Ids = data['category_Ids']
@@ -94,7 +98,7 @@ def liveFeed():
     with torch.no_grad():
         
         # Create the model
-        model = YOLOX(device, k, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, SPPDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold)
+        model = YOLOX(device, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, score_thresh, IoU_thresh)
         
         # Load the model from a saved state
         model.loadModel(loadDir, loadName, paramLoadName)

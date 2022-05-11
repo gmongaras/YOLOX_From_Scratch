@@ -31,10 +31,16 @@ def train():
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
     ImgDim = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
-    removal_threshold = 0.8 # The threshold of predictions to remove if the
+    
+    
+    
+    # Bounding Box Filtering Parameters
+    removal_threshold = 0.5 # The threshold of predictions to remove if the
                             # confidence in that prediction is below this value
-    nonmax_threshold = 0.1  # The threshold of predictions to remove if the
-                            # IoU is under this threshold
+    score_thresh = 0.5      # The score threshold to remove boxes. If the score is
+                            # less than this value, remove it
+    IoU_thresh = 0.25       # The IoU threshold to update scores. If the IoU is
+                            # greater than this value, update it's score
     
     
     # SimOta Parameters
@@ -268,7 +274,7 @@ def train():
     
     # Create the model
     #torch.autograd.set_detect_anomaly(True)
-    model = YOLOX(device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, nonmax_threshold, SimOTA_params)
+    model = YOLOX(device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params)
     
     # Load the model if requested
     if loadModel:

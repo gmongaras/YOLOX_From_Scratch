@@ -34,10 +34,16 @@ def predict():
     reg_consts = (          # The contraints on the regression size
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
-    removal_threshold = 0.75# The threshold of predictions to remove if the
+
+    
+    
+    # Bounding Box Filtering Parameters
+    removal_threshold = 0.5 # The threshold of predictions to remove if the
                             # confidence in that prediction is below this value
-    nonmax_threshold = 0.1  # The threshold of predictions to remove if the
-                            # IoU is over this threshold
+    score_thresh = 0.5      # The score threshold to remove boxes. If the score is
+                            # less than this value, remove it
+    IoU_thresh = 0.25       # The IoU threshold to update scores. If the IoU is
+                            # greater than this value, update it's score
     
     
     # Training Paramters
@@ -48,8 +54,8 @@ def predict():
     
     # Model Loading Parameters
     loadDir = "../models"       # The directory to load the model from
-    paramLoadName = "modelParams - test.json"   # File to load the model paramters from
-    loadName = "model - test.pkl"  # Filename to load the model from
+    paramLoadName = "modelParams - t.json"   # File to load the model paramters from
+    loadName = "model - t.pkl"  # Filename to load the model from
     
     
     # Loss Function Hyperparameters
@@ -128,7 +134,7 @@ def predict():
     with torch.no_grad():
         
         # Create the model
-        model = YOLOX(device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold)
+        model = YOLOX(device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, score_thresh, IoU_thresh)
         
         # Load the model from a saved state
         model.loadModel(loadDir, loadName, paramLoadName)

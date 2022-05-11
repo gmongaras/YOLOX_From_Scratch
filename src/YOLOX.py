@@ -39,6 +39,10 @@ class YOLOX(nn.Module):
     #   category_Ids - Dictionary mapping categories to their ids
     #   removal_threshold - The threshold of predictions to remove if the
     #                       confidence in that prediction is below this value
+    #   score_thresh - The score threshold to remove boxes. If the score is
+    #                  less than this value, remove it
+    #   IoU_thresh - The IoU threshold to update scores. If the IoU is
+    #                greater than this value, update it's score
     #   nonmax_threshold - The threshold of predictions to remove if the
     #                       IoU is under this threshold
     #   SimOTA_params - Paramters used for the SimOta calculation:
@@ -47,7 +51,7 @@ class YOLOX(nn.Module):
     #   3. extraCost - The extra cost used in the center prior computation
     #   4. SimOta_lambda = Balancing factor for the foreground loss
     #   - This parameter is only required for training
-    def __init__(self, device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, nonmax_threshold, SimOTA_params=None):
+    def __init__(self, device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params=None):
         super(YOLOX, self).__init__()
         
         # Save the model paramters
@@ -63,7 +67,8 @@ class YOLOX(nn.Module):
         self.reg_weight = reg_weight
         self.category_Ids = category_Ids
         self.removal_threshold = removal_threshold
-        self.nonmax_threshold = nonmax_threshold
+        self.score_thresh = score_thresh
+        self.IoU_thresh = IoU_thresh
         self.SimOTA_params = SimOTA_params
         
         # Trainable paramters for the exponential function which the
@@ -585,7 +590,7 @@ class YOLOX(nn.Module):
                             
                             # Get the IoU between the predicted boxes and
                             # the current GT box
-                            _, IoU_val = self.losses.IoU(reg_p[b_num], torch.unsqueeze(box, dim=0))
+                            _, IoU_val = self.losses.IoU(reg_p[b_num], box)
                             
                             # Broadcast the GT box
                             # box = torch.broadcast_to(box, reg_p[b_num].shape).to(cpu).clone()
@@ -919,7 +924,7 @@ class YOLOX(nn.Module):
         
         # Apply nonmax supression to remove 
         # predictions that are more liekly to be correct
-        reg_preds_f, obj_preds_f, cls_preds_f = soft_nonmaxSupression(reg_preds_f, obj_preds_f, cls_preds_f, self.nonmax_threshold)
+        reg_preds_f, obj_preds_f, cls_preds_f = soft_nonmaxSupression(reg_preds_f, obj_preds_f, cls_preds_f, self.score_thresh, self.IoU_thresh, self.losses.IoU)
                     
         # Return the predictions
         return cls_preds_f, reg_preds_f, obj_preds_f

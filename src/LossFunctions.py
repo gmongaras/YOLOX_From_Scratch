@@ -200,9 +200,9 @@ class LossFunctions():
     def IoU(self, pred, GT):
         # Ensure the shapes are the same
         if len(pred.shape) > len(GT.shape):
-            pred = torch.unsqueeze(pred, dim=0)
-        elif len(pred.shape) < len(GT.shape):
             GT = torch.unsqueeze(GT, dim=0)
+        elif len(pred.shape) < len(GT.shape):
+            pred = torch.unsqueeze(pred, dim=0)
         
         # Get the (x, y) coordinates of the intersection
         xA = torch.maximum(pred[:, 0], GT[:, 0])

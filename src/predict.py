@@ -54,8 +54,8 @@ def predict():
     
     # Model Loading Parameters
     loadDir = "../models"       # The directory to load the model from
-    paramLoadName = "modelParams - t.json"   # File to load the model paramters from
-    loadName = "model - t.pkl"  # Filename to load the model from
+    paramLoadName = "modelParams - test.json"   # File to load the model paramters from
+    loadName = "model - test.pkl"  # Filename to load the model from
     
     
     # Loss Function Hyperparameters

@@ -256,3 +256,5 @@ nonmax suppression - https://arxiv.org/pdf/1704.04503.pdf
 GIoU - https://giou.stanford.edu/
 
 FCOS - https://arxiv.org/abs/1904.01355
+
+MixUp - https://arxiv.org/pdf/1710.09412.pdf

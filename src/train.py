@@ -8,6 +8,8 @@ import torch
 import math
 from matplotlib import pyplot as plt
 import os
+from dataAugmentation import Mosaic
+from copy import deepcopy
 
 
 
@@ -97,7 +99,10 @@ def train():
     
     
     
-    ### Data Loading
+    
+    
+    
+    ### Data Loading ###
     
     # Initialize the COCO data
     coco=COCO(annFile)
@@ -173,11 +178,11 @@ def train():
         imgs.append(img)
         props.append(prop)
         padding.append(pad)
-    imgs = torch.tensor(np.array(imgs), dtype=torch.float32, requires_grad=False, device=cpu)
+    imgs = torch.tensor(np.array(imgs), dtype=torch.int16,  requires_grad=False, device=cpu)
     
     # Correction so that channels are first, not last
     if imgs.shape[-1] == 3:
-        imgs = torch.reshape(imgs, (imgs.shape[0], 3, imgs.shape[1], imgs.shape[2]))
+        imgs = imgs.permute(0, 3, 1, 2)
     print("Images Loaded")
     
     
@@ -199,16 +204,16 @@ def train():
         pad = padding[i]
         
         # Get all annotations for this image
-        ann = ann_data[img_d["id"]]
+        ann = deepcopy(ann_data[img_d["id"]])
         ann_bbox = []
         ann_cls = []
         
         # The class for each pixel in the image
-        pix_cls = np.zeros((img.shape[1], img.shape[2]))
+        pix_cls = np.zeros((img.shape[1], img.shape[2]), dtype=np.int16)
         
         # The object probability for each pixel in the image
         # (1 if object in pixel, 0 otherwise)
-        pix_obj = np.zeros((img.shape[1], img.shape[2]))
+        pix_obj = np.zeros((img.shape[1], img.shape[2]), dtype=np.int16)
         
         # Iterate over every annotation and save it into a better form
         for a in ann:
@@ -250,16 +255,30 @@ def train():
                         pix_obj[:][w][h] = 1
         
         # Encode the classes as a tensor
-        pix_cls = torch.tensor(pix_cls, dtype=int, device=cpu, requires_grad=False)
+        pix_cls = torch.tensor(pix_cls, dtype=int, device=cpu, requires_grad=False, dtype=torch.int16)
         
         # One hot encode the pixel classes
         #pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int, device=cpu), len(seq_category_Ids.values()))
         
         # Encode the objectiveness as a tensor
-        pix_obj = torch.tensor(pix_obj, dtype=int, device=cpu, requires_grad=False)
+        pix_obj = torch.tensor(pix_obj, dtype=int, device=cpu, requires_grad=False, dtype=torch.int16)
         
         anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls, "pix_obj":pix_obj})
     print("Annotations Loaded!\n")
+    
+    
+    
+    
+    ### Data Augmentation ###
+    
+    #
+    qwe = [io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_data[0]["file_name"]), io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_data[1]["file_name"]), io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_data[2]["file_name"]), io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_data[3]["file_name"])]
+    ert = [{"bbox":[i['bbox'] for i in ann_data[img_data[0]["id"]]], "cls":[i['category_id'] for i in ann_data[img_data[0]["id"]]]}, 
+           {"bbox":[i['bbox'] for i in ann_data[img_data[1]["id"]]], "cls":[i['category_id'] for i in ann_data[img_data[1]["id"]]]}, 
+           {"bbox":[i['bbox'] for i in ann_data[img_data[2]["id"]]], "cls":[i['category_id'] for i in ann_data[img_data[2]["id"]]]}, 
+           {"bbox":[i['bbox'] for i in ann_data[img_data[3]["id"]]], "cls":[i['category_id'] for i in ann_data[img_data[3]["id"]]]}]
+    Mosaic(qwe, ert, (ImgDim, ImgDim))
+    
     
     
     

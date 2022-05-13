@@ -557,7 +557,8 @@ class YOLOX(nn.Module):
                     cls_targs_hot = nn.functional.one_hot(cls_targs, cls_p.shape[-1])
                     
                     # Get the loss value
-                    cls_Loss = self.losses.BinaryCrossEntropy(cls_p[reg_labels != 0].to(cpu), cls_targs_hot[reg_labels != 0].float())
+                    #cls_Loss = self.losses.BinaryCrossEntropy(cls_p[reg_labels != 0].to(cpu), cls_targs_hot[reg_labels != 0].float())
+                    cls_Loss = self.losses.FocalLoss(cls_p[reg_labels != 0].to(cpu), cls_targs_hot[reg_labels != 0].float()).sum()
                     
                     
                     
@@ -698,7 +699,7 @@ class YOLOX(nn.Module):
             
             print()
             print("Cls:")
-            print(f"Prediction: {torch.argmax(cls_p[idx][reg_labels[idx] == 1][:2], dim=1).cpu().detach().numpy()}")
+            print(f"Prediction: {torch.argmax(torch.sigmoid(cls_p[idx])[reg_labels[idx] == 1][:2], dim=1).cpu().detach().numpy()}")
             print(f"Ground Truth: {cls_targs[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}")
             print()
             print("Obj:")

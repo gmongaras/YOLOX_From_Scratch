@@ -48,11 +48,6 @@ def centerPrior(A, G_box, r, extraCost):
     # gt center location for each anchor
     dist = np.sqrt(np.sum(diff**2, axis=-1))
     
-    # Sort the distances and get the opposite of the 
-    # r**2 smallest distances which will be subject to a
-    # greater cost
-    #idx_neg = np.argsort(dist)[(r**2):]
-    
     # Get the indices of the distances which are greater
     # than r**2 meaning the anchor is outside the radius
     idx_neg = np.where(dist > r**2)

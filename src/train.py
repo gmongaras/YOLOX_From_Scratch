@@ -8,7 +8,6 @@ import torch
 import math
 from matplotlib import pyplot as plt
 import os
-from dataAugmentation import Mosaic
 from copy import deepcopy
 
 
@@ -33,6 +32,7 @@ def train():
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
     ImgDim = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
+    augment_per = 0.5       # Percent of extra data to generate every epoch
     
     
     
@@ -211,10 +211,6 @@ def train():
         # The class for each pixel in the image
         pix_cls = np.zeros((img.shape[1], img.shape[2]), dtype=np.int16)
         
-        # The object probability for each pixel in the image
-        # (1 if object in pixel, 0 otherwise)
-        pix_obj = np.zeros((img.shape[1], img.shape[2]), dtype=np.int16)
-        
         # Iterate over every annotation and save it into a better form
         for a in ann:
             # Save the annotation if it bounds the wanted object
@@ -252,32 +248,12 @@ def train():
                 for w in range(bbox[0], bbox[0]+bbox[2]):
                     for h in range(bbox[1], bbox[1]+bbox[3]):
                         pix_cls[:][w][h] = cls
-                        pix_obj[:][w][h] = 1
         
         # Encode the classes as a tensor
-        pix_cls = torch.tensor(pix_cls, dtype=int, device=cpu, requires_grad=False, dtype=torch.int16)
+        pix_cls = torch.tensor(pix_cls, device=cpu, requires_grad=False, dtype=torch.int16)
         
-        # One hot encode the pixel classes
-        #pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int, device=cpu), len(seq_category_Ids.values()))
-        
-        # Encode the objectiveness as a tensor
-        pix_obj = torch.tensor(pix_obj, dtype=int, device=cpu, requires_grad=False, dtype=torch.int16)
-        
-        anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls, "pix_obj":pix_obj})
+        anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls})
     print("Annotations Loaded!\n")
-    
-    
-    
-    
-    ### Data Augmentation ###
-    
-    #
-    qwe = [io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_data[0]["file_name"]), io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_data[1]["file_name"]), io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_data[2]["file_name"]), io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_data[3]["file_name"])]
-    ert = [{"bbox":[i['bbox'] for i in ann_data[img_data[0]["id"]]], "cls":[i['category_id'] for i in ann_data[img_data[0]["id"]]]}, 
-           {"bbox":[i['bbox'] for i in ann_data[img_data[1]["id"]]], "cls":[i['category_id'] for i in ann_data[img_data[1]["id"]]]}, 
-           {"bbox":[i['bbox'] for i in ann_data[img_data[2]["id"]]], "cls":[i['category_id'] for i in ann_data[img_data[2]["id"]]]}, 
-           {"bbox":[i['bbox'] for i in ann_data[img_data[3]["id"]]], "cls":[i['category_id'] for i in ann_data[img_data[3]["id"]]]}]
-    Mosaic(qwe, ert, (ImgDim, ImgDim))
     
     
     
@@ -291,6 +267,9 @@ def train():
     # SimOta Paramters
     SimOTA_params = [q, r, extraCost, SimOta_lambda]
     
+    # Data augmentation paramters
+    dataAug_params = [dataDir + os.sep + "images" + os.sep + dataType + os.sep, img_data, ann_data]
+    
     # Create the model
     #torch.autograd.set_detect_anomaly(True)
     model = YOLOX(device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params)
@@ -300,7 +279,7 @@ def train():
         model.loadModel(loadDir, loadName, paramLoadName)
     
     # Train the model
-    model.train_model(imgs, anns, saveParams)
+    model.train_model(imgs, anns, dataAug_params, augment_per, saveParams)
     
     
     #### Model Testing

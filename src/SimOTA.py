@@ -174,11 +174,11 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
     for i in range(0, m):
         # Get the Focal loss between all predicted classes and
         # the ith ground truth class
-        loss_cls = LossFuncts.FocalLoss(preds_cls, torch.tensor(G_cls[i]))
+        loss_cls = LossFuncts.FocalLoss(preds_cls, torch.tensor(G_cls[i].astype(np.int32)))
         
         # Get the GIoU loss between all predicted boudning boxes
         # and the ith ground truth box
-        loss_giou = LossFuncts.GIoU(torch.tensor(P_reg), torch.tensor(G_reg[i:i+1]))[0]
+        loss_giou = LossFuncts.GIoU(torch.tensor(P_reg), torch.tensor(G_reg[i:i+1].astype(np.int32)))[0]
         
         # Get the center prior cost between the anchor locations and the gt bounding
         # box.

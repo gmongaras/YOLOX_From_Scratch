@@ -69,11 +69,11 @@ def resize(img, anns, size):
 #          3. pix_cls - A tensor of the same dimensions as the
 #                       original image where each pixel is the
 #                       class in that pixel
-#          4. pix_obj - A tensor of the same dimensions as the
-#                       original image where each pixel is a 1
-#                       if an object is in that pixel, 0 otherwise
 # size - An iterable of size (height, width) which is the
 #        size of the output image
+# Output:
+#   img - An image of the given size
+#   new_anns - Combined annotations for the new image
 def Mosaic(imgs, anns, size):
     ## The mosaic data augmentation takes 4 images of
     ## different sizes and follows the steps to create
@@ -229,9 +229,9 @@ def Mosaic(imgs, anns, size):
     
     
     # Create the final annotation dictionary
-    new_anns = {"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls}
+    new_anns = {"bbox":ann_bbox.tolist(), "cls":ann_cls, "pix_cls":pix_cls}
     
     
     
     # Return the image and its annotations
-    return img, new_anns
+    return cutout, new_anns

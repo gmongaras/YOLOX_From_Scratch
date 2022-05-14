@@ -1,9 +1,3 @@
-# TODO
-- Add L1 Loss (found in YoloX source code)
-- Model crashes after about 150 iters on 128 data points. Is this fixed with obj loss fix?
-- Data Augmentation (Mosaic and MixUp). Don't use these augmentations for the last 15 iterations.
-
-
 # Contents
 - [Project Purpose](#project-purpose)
 - [Project Requirements](#project-requirements)

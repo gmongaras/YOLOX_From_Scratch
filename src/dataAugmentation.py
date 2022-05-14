@@ -280,14 +280,17 @@ def mixup(img1, img2, labels1, labels2, finalShape, alpha=1.5):
     # Combine the annotations
     new_bbox = np.array(labels1["bbox"] + labels2["bbox"], dtype=np.int16)
     new_cls = labels1["cls"] + labels2["cls"]
-    pix_cls = torch.zeros(new_img.shape[1:], dtype=torch.int16, requires_grad=False)
-    for box_num in range(0, len(new_bbox)):
-        box = new_bbox[box_num]
-        pix_cls[box[0]:box[0]+box[2], box[1]:box[1]+box[3]] = new_cls[box_num]
-    new_labels = {"bbox":new_bbox.tolist(), "cls":new_cls, "pix_cls":pix_cls}
+    new_labels = {"bbox":new_bbox.tolist(), "cls":new_cls}
     
     # Resize the image to the given size
     new_img, new_labels = resize(new_img.transpose(1,2,0).astype(np.uint8), new_labels, finalShape)
     new_img = torch.tensor(new_img, dtype=torch.int16, requires_grad=False)
+    
+    # Add the pixel class to the labels
+    pix_cls = torch.zeros(new_img.shape[1:], dtype=torch.int16, requires_grad=False)
+    for box_num in range(0, len(new_bbox)):
+        box = new_bbox[box_num]
+        pix_cls[box[0]:box[0]+box[2], box[1]:box[1]+box[3]] = new_cls[box_num]
+    new_labels["pix_cls"] = pix_cls
     
     return new_img, new_labels

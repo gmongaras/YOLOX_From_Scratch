@@ -20,6 +20,7 @@ from SimOTA import SimOTA
 from dataAugmentation import Mosaic
 from dataAugmentation import mixup
 import matplotlib.patches as patches
+from PIL import Image
 
 
 cpu = torch.device('cpu')
@@ -322,10 +323,12 @@ class YOLOX(nn.Module):
     # Inputs:
     #   X - The inputs into the network (images to put bounding boxes on)
     #   y - The labels for each input (correct bounding boxes to place on image)
-    #   dataAug_params - A list containing three elements:
+    #   dataAug_params - A list containing four elements:
     #   1. directory storing images to load in
     #   2. img_data - Loaded data from the Coco dataset on images
     #   3. ann_data - Loaded data from the Coco dataset on annotations
+    #   4. category_Ids - A dictionary mapping the id of a Coco object
+    #                     to the name of that object
     #   augment_per - Percent of extra data to generate every epoch
     #   saveParams - Model saving paramters in list format with the following items:
     #       - [saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite]
@@ -349,7 +352,7 @@ class YOLOX(nn.Module):
         saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite = saveParams
         
         # Unpack the augmentation paramters
-        img_dir, img_data, ann_data = dataAug_params
+        img_dir, img_data, ann_data, category_Ids = dataAug_params
         
         # The best loss so far
         bestLoss = torch.inf
@@ -401,7 +404,10 @@ class YOLOX(nn.Module):
                     # Load in the image and it's annotations
                     aug_img = io.imread(img_dir + img_data[rand_idx]["file_name"])
                     aug_ann = {"bbox":deepcopy([i['bbox'] for i in ann_data[img_data[rand_idx]["id"]]]),
-                               "cls":[i['category_id'] for i in ann_data[img_data[rand_idx]["id"]]]}
+                               "cls":[list(category_Ids.values()).index(i["category_id"])+1 for i in ann_data[img_data[rand_idx]["id"]]]}
+                    
+                    # Convert the image to RGB
+                    aug_img = np.array(Image.fromarray(aug_img).convert("RGB"))
                     
                     # Save the image and annotations
                     aug_imgs.append(aug_img)
@@ -431,7 +437,10 @@ class YOLOX(nn.Module):
                     # Load in the image and it's annotations
                     aug_img = io.imread(img_dir + img_data[rand_idx]["file_name"])
                     aug_ann = {"bbox":deepcopy([i['bbox'] for i in ann_data[img_data[rand_idx]["id"]]]),
-                               "cls":[i['category_id'] for i in ann_data[img_data[rand_idx]["id"]]]}
+                               "cls":[list(category_Ids.values()).index(i["category_id"])+1 for i in ann_data[img_data[rand_idx]["id"]]]}
+                    
+                    # Convert the image to RGB
+                    aug_img = np.array(Image.fromarray(aug_img).convert("RGB"))
                     
                     # Save the image and annotations
                     aug_imgs.append(aug_img)

@@ -32,7 +32,7 @@ def train():
         0, 64, 128, 256     # Basically constraints on how large the bounding
         )                   # boxes can be for each level in the network
     ImgDim = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
-    augment_per = 0.5       # Percent of extra data to generate every epoch
+    augment_per = 0.75      # Percent of extra data to generate every epoch
     
     
     
@@ -82,7 +82,7 @@ def train():
     dataType = "val2017"    # The type of data being used in the COCO dataset
     annFile = '{}/annotations/instances_{}.json'.format(dataDir,dataType)
     categories = []         # The categories to load in (empty list to load all)
-    numToLoad = 10          # Max Number of data images to load in (use -1 for all)
+    numToLoad = 10         # Max Number of data images to load in (use -1 for all)
     
     
     
@@ -268,7 +268,7 @@ def train():
     SimOTA_params = [q, r, extraCost, SimOta_lambda]
     
     # Data augmentation paramters
-    dataAug_params = [dataDir + os.sep + "images" + os.sep + dataType + os.sep, img_data, ann_data]
+    dataAug_params = [dataDir + os.sep + "images" + os.sep + dataType + os.sep, img_data, ann_data, category_Ids]
     
     # Create the model
     #torch.autograd.set_detect_anomaly(True)

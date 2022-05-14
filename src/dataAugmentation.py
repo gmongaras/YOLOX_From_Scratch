@@ -235,3 +235,59 @@ def Mosaic(imgs, anns, size):
     
     # Return the image and its annotations
     return cutout, new_anns
+
+
+
+
+
+
+# Given two images, 
+# Inputs:
+#   img1/img2 - Images of different shapes to combine
+#               as numpy arrays
+#   labels1/labels2 - The labels for each of the input images
+#   finalShape - The final width and height the resulting
+#                image should be in
+def mixup(img1, img2, labels1, labels2, finalShape, alpha=1.5):
+    # Ensure the images are in (RGB, W, H) format
+    if img1.shape[0] != 3:
+        img1 = img1.transpose(2, 0, 1)
+    if img2.shape[0] != 3:
+        img2 = img2.transpose(2, 0, 1)
+    
+    # Get the max width and height out of the two images
+    width = max(img1.shape[1], img2.shape[1])
+    height = max(img1.shape[2], img2.shape[2])
+    
+    # Create an image of block pixels which is the
+    # same shape as the max width and height
+    new_img = np.zeros((3, width, height), dtype=np.float32)
+    
+    # Sample from a beta distribution to get the lambda value
+    Lambda = torch.distributions.beta.Beta(alpha, alpha).sample().item()
+    
+    # Use the formula by the paper to weight each image
+    img1 = Lambda*img1
+    img2 = (1-Lambda)*img2
+    
+    # Combine the images
+    new_img[:, 0:img1.shape[1], 0:img1.shape[2]] = img1
+    new_img[:, 0:img2.shape[1], 0:img2.shape[2]] += img2
+    
+    # Change the image to an integer image
+    new_img = new_img.astype(np.int16)
+    
+    # Combine the annotations
+    new_bbox = np.array(labels1["bbox"] + labels2["bbox"], dtype=np.int16)
+    new_cls = labels1["cls"] + labels2["cls"]
+    pix_cls = torch.zeros(new_img.shape[1:], dtype=torch.int16, requires_grad=False)
+    for box_num in range(0, len(new_bbox)):
+        box = new_bbox[box_num]
+        pix_cls[box[0]:box[0]+box[2], box[1]:box[1]+box[3]] = new_cls[box_num]
+    new_labels = {"bbox":new_bbox.tolist(), "cls":new_cls, "pix_cls":pix_cls}
+    
+    # Resize the image to the given size
+    new_img, new_labels = resize(new_img.transpose(1,2,0).astype(np.uint8), new_labels, finalShape)
+    new_img = torch.tensor(new_img, dtype=torch.int16, requires_grad=False)
+    
+    return new_img, new_labels

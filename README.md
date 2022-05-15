@@ -86,7 +86,7 @@ The final predictions of this model are the following:
   3. Height of the bounding box
   4. Width of the bounding box
 - Cls - The predicted class the model thinks is inside the bounding box. This is a one-hot encoded vector with the same number of elements are there are classes.
-- IoU (obj) - The objectiveness prediction of the predicted bounding box. This is a single value showing how confident an object is in the predicted bounding box.
+- IoU (obj) - The objectness prediction of the predicted bounding box. This is a single value showing how confident an object is in the predicted bounding box.
 
 More about the model can be found in the [articles I wrote](#project-purpose).
 

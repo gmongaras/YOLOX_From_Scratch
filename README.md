@@ -59,7 +59,7 @@ https://github.com/Megvii-BaseDetection/YOLOX
 When reading over the YOLOX paper, I noticed it was missing a lot of content that was assumed knowledge from other papers like YOLOv3, OTA, FCOS, and others. Since this algorithm does better than the famous YOLO algorithms but does so without anchors, it is important to understand how it works in order to improve bounding box algorithms in an anchor-free manner. Using this repo, I will attempt to explain how the algorithm works in some sort of article format and will put the links below as I write them:
 
 [What is YOLO and What Makes It Special?](https://gmongaras.medium.com/yolox-explanation-what-is-yolox-and-what-makes-it-special-c01f6a8a0830)<br>
-How Does YOLOX Work?<br>
+[How Does YOLOX Work?](https://gmongaras.medium.com/yolox-explanation-how-does-yolox-work-3e5c89f2bf78)<br>
 SimOTA For Dynamic Label Assignment<br>
 Mosaic and Mixup For Data Augmentation<br>
 

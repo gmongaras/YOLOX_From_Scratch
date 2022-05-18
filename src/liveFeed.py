@@ -1,13 +1,7 @@
 from YOLOX import YOLOX
-from pycocotools.coco import COCO
 import numpy as np
-import skimage.io as io
 from PIL import Image, ImageOps
-import random
 import torch
-import math
-from matplotlib import pyplot as plt
-import matplotlib.patches as patches
 import os
 import json
 import cv2
@@ -32,9 +26,6 @@ def liveFeed():
     ImgDim = 256            # The height and width dimension to convert FPN 
                             # (Feature Pyramid Network) encodings to
     numCats = 3             # The number of categories to predict from
-    reg_consts = (          # The contraints on the regression size
-        0, 64, 128, 256     # Basically constraints on how large the bounding
-        )                   # boxes can be for each level in the network
     
     
     
@@ -98,7 +89,7 @@ def liveFeed():
     with torch.no_grad():
         
         # Create the model
-        model = YOLOX(device, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, score_thresh, IoU_thresh)
+        model = YOLOX(device, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_weight, category_Ids, removal_threshold, score_thresh, IoU_thresh)
         
         # Load the model from a saved state
         model.loadModel(loadDir, loadName, paramLoadName)

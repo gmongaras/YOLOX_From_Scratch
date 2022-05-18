@@ -42,7 +42,6 @@ class YOLOX(nn.Module):
     #   numCats - The number of categories to predict from
     #   FL_alpha - The focal loss alpha parameter
     #   FL_gamma - The focal loss gamma parameter
-    #   reg_consts - The regression constraints (should be 4 values)
     #   reg_weight - Percent to weight the regression loss over the other loss
     #   category_Ids - Dictionary mapping categories to their ids
     #   removal_threshold - The threshold of predictions to remove if the
@@ -59,7 +58,7 @@ class YOLOX(nn.Module):
     #   3. extraCost - The extra cost used in the center prior computation
     #   4. SimOta_lambda = Balancing factor for the foreground loss
     #   - This parameter is only required for training
-    def __init__(self, device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params=None):
+    def __init__(self, device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_weight, category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params=None):
         super(YOLOX, self).__init__()
         
         # Save the model paramters
@@ -69,8 +68,6 @@ class YOLOX(nn.Module):
         self.lr_init = lr_init
         self.device = device
         self.ImgDim = ImgDim
-        assert len(reg_consts) == 4, "The regression constrainsts should contain 4 values"
-        self.reg_consts = reg_consts
         self.numCats = numCats
         self.reg_weight = reg_weight
         self.category_Ids = category_Ids

@@ -1,18 +1,8 @@
 import torch
 from math import sqrt
 from random import uniform
-import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
-import matplotlib.patches as patches
-
-
-
-
-
-def randomCrop():
-    #https://pytorch.org/vision/stable/generated/torchvision.transforms.RandomCrop.html#torchvision.transforms.RandomCrop
-    return
 
 
 

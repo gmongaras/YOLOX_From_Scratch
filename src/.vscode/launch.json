@@ -10,7 +10,8 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            "args": ["--dataDir=../coco", "--dataType=val2017", "--numToLoad=10"],
         }
     ]
 }

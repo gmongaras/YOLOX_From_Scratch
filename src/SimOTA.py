@@ -111,9 +111,6 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
     
     
     
-    ## Get the IoU between the ith gt and
-    ## all predicted bounding boxes (anchors)
-    
     # Iterate over all ground truth boxes (i = gt_i)
     for i in range(0, m):
         
@@ -150,7 +147,7 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
         # as an iteger
         s_i[i] = int(round(k))
     
-    # s_m+1, the background class takes all the rest of the labels
+    # 4: s_m+1, the background class takes all the rest of the labels
     # k_sum is essentially k*m
     s_i[-1] = n-round(k_sum)
     

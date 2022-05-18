@@ -118,16 +118,16 @@ The Coco data should be in the proper format so the model can properly find the 
 |   |   ├── person_keypoints_train2017.json
 |   |   └── person_keypoints_val2017.json
 │   └── images
-|   ├── train 2017
-|   |   ├── 000000000009.jpg
-|   |   ├── 000000000025.jpg
-|   |   ├── ...
-|   |   └── {more images in the train2017 dataset}
-|   ├── val2017
-|   |   ├── 000000000139.jpg
-|   |   ├── 000000000285.jpg
-|   |   ├── ...
-|   |   └── {more images in the val2017 dataset}
+|   |   ├── train 2017
+|   |   |   ├── 000000000009.jpg
+|   |   |   ├── 000000000025.jpg
+|   |   |   ├── ...
+|   |   |   └── {more images in the train2017 dataset}
+|   |   ├── val2017
+|   |   |   ├── 000000000139.jpg
+|   |   |   ├── 000000000285.jpg
+|   |   |   ├── ...
+|   |   |   └── {more images in the val2017 dataset}
 ├── models
 │   ├── model - test.pkl
 |   └── modelParams - test.json

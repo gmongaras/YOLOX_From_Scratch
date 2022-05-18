@@ -28,6 +28,7 @@ SciKit Image: 0.18.2
 Pillow: 8.2.0
 Matplotlib: 3.4.2
 CV2: 4.5.2.54
+click: 8.1.3
 ```
 
 You can install all these libraries using the following commands:
@@ -39,6 +40,7 @@ pip install scikit-image
 pip install pillow
 pip install matplotlib
 pip install opencv-python
+pip install click
 ```
 
 To install PyTorch with Cuda support, go to the link below:

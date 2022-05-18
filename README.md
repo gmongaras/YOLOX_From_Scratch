@@ -197,9 +197,9 @@ There are three different scripts I wrote to run the model:
 
 ## Training
 
-To train the model, ensure the [data was downloaded correctly](#downloading-the-data).
+To train the model, first [download the data](#downloading-the-data).
 
-To train the model using a pre-trained model, ensure a [pretrained model was downloaded](#pretrained-models).
+To train the model using a pre-trained model, download  a [pretrained model](#pretrained-models).
 
 Assuming you now have the data and an optional pre-trained model on your computer, use the following command from the root directory of this repository to begin training the model:
 
@@ -212,7 +212,7 @@ More info coming in the future
 
 ## Predicting
 
-To make predictions with the model, ensure a [pretrained model was downloaded](#pretrained-models).
+To make predictions with the model, download a [pretrained model](#pretrained-models).
 
 Additionally, any images you wish the model to put bounding boxes around should be placed into the `./testData/` directory of this repository. A couple of images are already supplied.
 
@@ -228,7 +228,7 @@ python predict.py
 
 The Live Feed mode will use a pre-trained model and your device camera to put bounding boxes around your camera environment in real-time.
 
-To use the live feed mode, ensure a [pretrained model was downloaded](#pretrained-models).
+To use the live feed mode, download a [pretrained model](#pretrained-models).
 
 To run the live feed mode, use the following command from the root repository in the directory:
 

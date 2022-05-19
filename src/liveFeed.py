@@ -5,6 +5,8 @@ import torch
 import os
 import json
 import cv2
+import click
+from typing import Optional
 
 
 
@@ -15,39 +17,53 @@ import cv2
 
 
 
-def liveFeed():
-    # Model Hyperparameters
-    device = "gpu"          # The device to train the model with (cpu or gpu)
-    numEpochs = 300         # The number of epochs to train the model for
-    warmupEpochs = 5        # Number of warmup epochs to train the model for
-    lr_init = 0.01          # Initial learning rate
-    weightDecay = 0.0005    # Amount to decay weights over time
-    momentum = 0.9          # Momentum of the SGD optimizer
-    ImgDim = 256            # The height and width dimension to convert FPN 
-                            # (Feature Pyramid Network) encodings to
-    numCats = 3             # The number of categories to predict from
+@click.command()
+# Required
+@click.option("--loadDir", "loadDir", type=str, help="The directory to load the model from", required=True)
+@click.option("--paramLoadName", "paramLoadName", type=str, help="File to load the model paramters from", required=True)
+@click.option("--loadName", "loadName", type=str, help="Filename to load the model from", required=True)
+
+# Other Paramters
+@click.option("--device", "device", type=str, default="gpu", help="The device to train the model with (cpu or gpu)", required=False)
+
+# Bounding Box Filtering
+@click.option("--removal_threshold", "removal_threshold", type=float, default=0.5, help="The threshold of predictions to remove if the confidence in that prediction is below this value", required=False)
+@click.option("--score_thresh", "score_thresh", type=float, default=0.5, help="The score threshold to remove boxes in NMS. If the score is less than this value, remove it", required=False)
+@click.option("--IoU_thresh", "IoU_thresh", type=float, default=0.1, help="The IoU threshold to update scores in NMS. If the IoU is greater than this value, update it's score", required=False)
+
+# Focal Loss Function Hyperparamters
+@click.option("--FL_alpha", "FL_alpha", type=float, default=4.0, help="The focal loss alpha parameter", required=False)
+@click.option("--FL_gamma", "FL_gamma", type=float, default=2.0, help="The focal loss gamma paramter", required=False)
+def liveFeed(
+    loadDir: str,
+    paramLoadName: str,
+    loadName: str,
     
+    device: Optional[str],
+
+    removal_threshold: Optional[float],
+    score_thresh: Optional[float],
+    IoU_thresh: Optional[float],
+
+    FL_alpha: Optional[float],
+    FL_gamma: Optional[float],
     
+    ):
+    # Trash parameters the model requires but does not use
+    numEpochs = 300
+    warmupEpochs = 5
+    lr_init = 0.01
+    weightDecay = 0.0005
+    momentum = 0.9
+    FL_alpha = 4
+    FL_gamma = 2
+    reg_weight = 5
     
-    # Bounding Box Filtering Parameters
-    removal_threshold = 0.5 # The threshold of predictions to remove if the
-                            # confidence in that prediction is below this value
-    score_thresh = 0.5      # The score threshold to remove boxes. If the score is
-                            # less than this value, remove it
-    IoU_thresh = 0.15       # The IoU threshold to update scores. If the IoU is
-                            # greater than this value, update it's score
-    
-    
-    # Model Loading Parameters
-    loadDir = "../models"       # The directory to load the model from
-    paramLoadName = "modelParams - test.json"   # File to load the model paramters from
-    loadName = "model - test.pkl"  # Filename to load the model from
-    
-    
-    # Loss Function Hyperparameters
-    FL_alpha = 4            # The focal loss alpha parameter
-    FL_gamma = 2            # The focal loss gamma paramter
-    reg_weight = 5.0        # Percent to weight regression loss over other loss
+    # Trash paramters the model needs but will overwrite
+    # using the model paramters file
+    ImgDim = 256
+    numCats = 3
+    category_Ids = dict()
     
     
     
@@ -65,19 +81,13 @@ def liveFeed():
     
     
     
-    
-    ### Data Loading ###
-    
-    
-    
-    
     ### Model Loading ###
     
     # Load in the model parameters
     with open(os.path.join(loadDir, paramLoadName), "r", encoding='utf-8') as f:
         data = json.load(f)
         
-    # Save the loaded data as model paramters
+    # Store the loaded data as model paramters
     ImgDim = data['ImgDim']
     numCats = data['numCats']
     category_Ids = data['category_Ids']
@@ -162,9 +172,12 @@ def liveFeed():
     # Free the camera
     cap.release()
     cv2.destroyAllWindows()
+    
+    return 0
 
 
 
 
 if __name__=='__main__':
+    # Usage: python liveFeed.py --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
     liveFeed()

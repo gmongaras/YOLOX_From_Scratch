@@ -330,12 +330,12 @@ def train(
     
     # Train the model
     model.train_model(imgs, anns, dataAug_params, augment_per, saveParams)
+    
+    return 0
 
 
 
 
 if __name__=='__main__':
-    try:
-        train()
-    except SystemExit:
-        raise RuntimeError("Usage: python train.py --dataDir=[dataDir] --dataType=[dataType] --numToLoad=[numToLoad]")
+    # Usage: python train.py --dataDir=[dataDir] --dataType=[dataType] --numToLoad=[numToLoad]
+    train()

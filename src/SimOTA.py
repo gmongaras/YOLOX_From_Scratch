@@ -136,6 +136,9 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
         # Compute the intersection over union for all anchors
         IoU = intersectionArea/union
         
+        # Those with an IoU of 0 need to be transformed to 0
+        IoU[union == 0] = 0
+        
         # Get the q top IoU values (the top q predictions)
         # and sum them up to get the k for this gt
         k = np.sort(IoU)[-q:].sum()

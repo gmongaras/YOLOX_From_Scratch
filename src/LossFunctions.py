@@ -144,6 +144,7 @@ class LossFunctions():
         # 7: Calculate IoU
         U = A_p + A_g - I
         IoU = I/U
+        IoU[U == 0] = 0
         
         # 8: Calculate the GIoU
         GIoU = IoU - ((A_c - U) / A_c)
@@ -201,6 +202,7 @@ class LossFunctions():
         
         # Compute the intersection over union
         IoU = intersectionArea/union
+        IoU[union == 0] = 0
         
         # Get the IoU loss
         IoU_loss = 1-IoU

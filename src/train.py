@@ -83,7 +83,7 @@ def str_to_list(s):
 @click.option("--reg_weight", "reg_weight", type=float, default=5.0, help="Percent to weight regression loss over other loss", required=False)
 
 # Coco dataset parameters
-@click.option("--categories", "categories", type=str_to_list, default="", help="The categories to load in (empty list to load all) (Ex: 'cat,dog,person'", required=False)
+@click.option("--categories", "categories", type=str_to_list, default="", help="The categories to load in (empty list to load all) (Ex: 'cat,dog,person')", required=False)
 
 def train(
     dataDir: str,

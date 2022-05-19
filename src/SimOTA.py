@@ -48,11 +48,6 @@ def centerPrior(A, G_box, r, extraCost):
     # gt center location for each anchor
     dist = np.sqrt(np.sum(diff**2, axis=-1))
     
-    # Sort the distances and get the opposite of the 
-    # r**2 smallest distances which will be subject to a
-    # greater cost
-    #idx_neg = np.argsort(dist)[(r**2):]
-    
     # Get the indices of the distances which are greater
     # than r**2 meaning the anchor is outside the radius
     idx_neg = np.where(dist > r**2)
@@ -116,9 +111,6 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
     
     
     
-    ## Get the IoU between the ith gt and
-    ## all predicted bounding boxes (anchors)
-    
     # Iterate over all ground truth boxes (i = gt_i)
     for i in range(0, m):
         
@@ -155,7 +147,7 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
         # as an iteger
         s_i[i] = int(round(k))
     
-    # s_m+1, the background class takes all the rest of the labels
+    # 4: s_m+1, the background class takes all the rest of the labels
     # k_sum is essentially k*m
     s_i[-1] = n-round(k_sum)
     
@@ -179,11 +171,11 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
     for i in range(0, m):
         # Get the Focal loss between all predicted classes and
         # the ith ground truth class
-        loss_cls = LossFuncts.FocalLoss(preds_cls, torch.tensor(G_cls[i]))
+        loss_cls = LossFuncts.FocalLoss(preds_cls, torch.tensor(G_cls[i].astype(np.int32)))
         
         # Get the GIoU loss between all predicted boudning boxes
         # and the ith ground truth box
-        loss_giou = LossFuncts.GIoU(torch.tensor(P_reg), torch.tensor(G_reg[i:i+1]))[0]
+        loss_giou = LossFuncts.GIoU(torch.tensor(P_reg), torch.tensor(G_reg[i:i+1].astype(np.int32)))[0]
         
         # Get the center prior cost between the anchor locations and the gt bounding
         # box.

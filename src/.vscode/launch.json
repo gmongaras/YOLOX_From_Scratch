@@ -10,7 +10,10 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": true
+            "justMyCode": true,
+            //"args": ["--dataDir=../coco", "--dataType=val2017", "--numToLoad=10"], // train
+            //"args": ["--dataDir=../testData", "--loadDir=../models", "--paramLoadName=modelParams - test.json", "--loadName=model - test.pkl"], // pred
+            "args": ["--loadDir=../models", "--paramLoadName=modelParams - test.json", "--loadName=model - test.pkl"], // liveFeed
         }
     ]
 }

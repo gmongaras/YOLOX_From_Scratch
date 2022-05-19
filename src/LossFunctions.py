@@ -37,10 +37,6 @@ class LossFunctions():
         
         # Return the loss value
         return -self.FL_alpha*((1-p_t)**self.FL_gamma)*torch.log(p_t)
-        
-        # Compute the loss and return it
-        return -((y+1)/2)*self.FL_alpha*((1-p)**self.FL_gamma)*torch.log(p) - \
-                ((1-y)/2)*((1-self.FL_alpha)*(p**self.FL_gamma))*torch.log(1-p)
     
     
     # Get the binary cross entropy loss given class predictions
@@ -53,23 +49,6 @@ class LossFunctions():
     #   The Binary Cross Entropy of the input tensor
     def BinaryCrossEntropy(self, y_hat, y):
         return torch.nn.BCEWithLogitsLoss(reduction='sum')(y_hat, y)
-    
-        # If the input is an empty tensor, return 0
-        if y_hat.size() == torch.Size([0]) or y.size() == torch.Size([0]):
-            return 0
-        
-        # Flatten the tensors if the dimensions are over two
-        if len(y_hat.shape) > 2:
-            y_hat = torch.flatten(y_hat, 1, -1)
-        if len(y.shape) > 2:
-            y = torch.flatten(y, 1, -1)
-        
-        # Ensure no Nan values
-        y_hat = torch.where(y_hat < 0.000001, y_hat+0.000001, y_hat)
-        y_hat = torch.where(y_hat > 0.999999, y_hat-0.000001, y_hat)
-        
-        # Return the loss value
-        return -torch.mean(y*torch.log(y_hat) + (1-y)*torch.log(1-y_hat))
     
     
     # Get the cross entropy loss given class predictions

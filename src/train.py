@@ -3,84 +3,139 @@ from pycocotools.coco import COCO
 import numpy as np
 import skimage.io as io
 from PIL import Image
-import random
 import torch
 import math
-from matplotlib import pyplot as plt
 import os
+from copy import deepcopy
+import click
+from typing import List, Optional
+import re
+
+
+
+
+
+def num_range(s):
+    """
+    Accept either a comma separated list of numbers 'a,b,c' or a range 'a-c' and return as a list of ints.
+    """
+
+    range_re = re.compile(r'^(\d+)-(\d+)$')
+    m = range_re.match(s)
+    if m:
+        return list(range(int(m.group(1)), int(m.group(2))+1))
+    vals = s.split(',')
+    return [int(x) for x in vals]
+
+
+def str_to_list(s):
+    """
+    Convert a string of form 'a,b,c' to a list ['a', 'b', 'c']
+    """
+    return s.replace(" ", "").split(",")
+    
 
 
 
 
 
 
+@click.command()
+# Required
+@click.option("--dataDir", "dataDir", type=str, help="Location of the COCO dataset", required=True)
+@click.option("--dataType", "dataType", type=str, help="The type of data being used in the COCO dataset (ex: val2017)", required=True)
+@click.option("--numToLoad", "numToLoad", type=int, help="Max Number of data images to load in (use -1 for all)", required=True)
 
+# Hyperparamters
+@click.option("--device", "device", type=str, default="gpu", help="The device to train the model with (cpu or gpu)", required=False)
+@click.option("--numEpochs", "numEpochs", type=int, default=300, help="The number of epochs to train the model", required=False)
+@click.option("--batchSize", "batchSize", type=int, default=128, help="The size of each minibatch", required=False)
+@click.option("--warmupEpochs", "warmupEpochs", type=int, default=5, help="Number of epochs before using a lr scheduler", required=False)
+@click.option("--alpha", "alpha", type=float, default=0.01, help="Initial learning rate", required=False)
+@click.option("--weightDecay", "weightDecay", type=float, default=0.0005, help="Weight decay in SGD", required=False)
+@click.option("--momentum", "momentum", type=float, default=0.9, help="Momentum of SGD", required=False)
+@click.option("--ImgDim", "ImgDim", type=int, default=256, help="Resize the images to a square pixel value (can be 1024, 512, or 256)", required=False)
+@click.option("--augment_per", "augment_per", type=float, default=0.75, help="Percent of extra augmented data to generate every epoch", required=False)
 
+# Bounding Box Filtering
+@click.option("--removal_threshold", "removal_threshold", type=float, default=0.5, help="The threshold of predictions to remove if the confidence in that prediction is below this value", required=False)
+@click.option("--score_thresh", "score_thresh", type=float, default=0.5, help="The score threshold to remove boxes in NMS. If the score is less than this value, remove it", required=False)
+@click.option("--IoU_thresh", "IoU_thresh", type=float, default=0.1, help="The IoU threshold to update scores in NMS. If the IoU is greater than this value, update it's score", required=False)
 
+# SimOTA Paramters
+@click.option("--q", "q", type=int, default=20, help="The number of GIoU values to pick when calculating the k values in SimOTA (k = The number of labels (supply) each gt has)", required=False)
+@click.option("--r", "r", type=int, default=5, help="The radius used to calculate the center prior in SimOTA", required=False)
+@click.option("--extraCost", "extraCost", type=float, default=100000.0, help="The extra cost used in the center prior computation in SimOTA", required=False)
+@click.option("--SimOta_lambda", "SimOta_lambda", type=float, default=3.0, help="Balancing factor for the foreground loss in SimOTA", required=False)
 
-def train():
-    # Model Hyperparameters
-    device = "gpu"          # The device to train the model with (cpu or gpu)
-    numEpochs = 300         # The number of epochs to train the model for
-    batchSize = 128         # The size of each minibatch
-    warmupEpochs = 5        # Number of warmup epochs to train the model for
-    lr_init = 0.01          # Initial learning rate
-    weightDecay = 0.0005    # Amount to decay weights over time
-    momentum = 0.9          # Momentum of the SGD optimizer
-    reg_consts = (          # The contraints on the regression size
-        0, 64, 128, 256     # Basically constraints on how large the bounding
-        )                   # boxes can be for each level in the network
-    ImgDim = 256            # Resize the images to a quare pixel value (can be 1024, 512, or 256)
+# Model Save Paramters
+@click.option("--saveDir", "saveDir", type=str, default="../models", help="The directory to save models to", required=False)
+@click.option("--saveName", "saveName", type=str, default="model", help="File to save the model to", required=False)
+@click.option("--paramSaveName", "paramSaveName", type=str, default="modelParams", help="File to save the model parameters to", required=False)
+@click.option("--saveSteps", "saveSteps", type=int, default=10, help="Save the model every `saveSteps` steps", required=False)
+@click.option("--saveOnBest", "saveOnBest", type=bool, default=False, help="True to save the model only if it's the current best model at save time", required=False)
+@click.option("--overwrite", "overwrite", type=bool, default=False, help="True to overwrite the existing file when saving. False to make a new file when saving.", required=False)
+
+# Model Loading Paramters
+@click.option("--loadModel", "loadModel", type=bool, default=False, help="True to load in a pretrained model, False otherwise", required=False)
+@click.option("--loadDir", "loadDir", type=str, default="../models", help="The directory to load the model from", required=False)
+@click.option("--paramLoadName", "paramLoadName", type=str, default="modelParams.json", help="File to load the model paramters from", required=False)
+@click.option("--loadName", "loadName", type=str, default="model.pkl", help="Filename to load the model from", required=False)
+
+# Loss Function Hyperparamters
+@click.option("--FL_alpha", "FL_alpha", type=float, default=4.0, help="The focal loss alpha parameter", required=False)
+@click.option("--FL_gamma", "FL_gamma", type=float, default=2.0, help="The focal loss gamma paramter", required=False)
+@click.option("--reg_weight", "reg_weight", type=float, default=5.0, help="Percent to weight regression loss over other loss", required=False)
+
+# Coco dataset paramters
+@click.option("--categories", "categories", type=str_to_list, default="", help="The categories to load in (empty list to load all) (Ex: 'cat,dog,person'", required=False)
+
+def train(
+    dataDir: str,
+    dataType: str,
+    numToLoad: int,
+
+    device: Optional[str],
+    numEpochs: Optional[int],
+    batchSize: Optional[int],
+    warmupEpochs: Optional[int],
+    alpha: Optional[float],
+    weightDecay: Optional[float],
+    momentum: Optional[float],
+    ImgDim: Optional[int],
+    augment_per: Optional[float],
+
+    removal_threshold: Optional[float],
+    score_thresh: Optional[float],
+    IoU_thresh: Optional[float],
+
+    q: Optional[int],
+    r: Optional[int],
+    extraCost: Optional[float],
+    SimOta_lambda: Optional[float],
+
+    saveDir: Optional[str],
+    saveName: Optional[str],
+    paramSaveName: Optional[str],
+    saveSteps: Optional[int],
+    saveOnBest: Optional[bool],
+    overwrite: Optional[bool],
+
+    loadModel: Optional[bool],
+    loadDir: Optional[str],
+    paramLoadName: Optional[str],
+    loadName: Optional[str],
+
+    FL_alpha: Optional[float],
+    FL_gamma: Optional[float],
+    reg_weight: Optional[float],
+
+    categories: Optional[List[str]],
     
+    ):
     
-    
-    # Bounding Box Filtering Parameters
-    removal_threshold = 0.5 # The threshold of predictions to remove if the
-                            # confidence in that prediction is below this value
-    score_thresh = 0.5      # The score threshold to remove boxes. If the score is
-                            # less than this value, remove it
-    IoU_thresh = 0.25       # The IoU threshold to update scores. If the IoU is
-                            # greater than this value, update it's score
-    
-    
-    # SimOta Parameters
-    q = 20              # The number of GIoU values to pick when calculating the k values
-                        #  - k = The number of labels (supply) each gt has
-    r = 5               # The radius used to calculate the center prior
-    extraCost = 100000  # The extra cost used in the center prior computation
-    SimOta_lambda = 3   # Balancing factor for the foreground loss
-    # Note: The best values for q, r, and lambda are chosen above
-    
-    
-    # Model Save Parameters
-    saveDir = "../models"   # The directory to save models to
-    saveName = "model"      # File to save the model to
-    paramSaveName = "modelParams"   # File to save the model parameters to
-    saveSteps = 10          # Save the model every X steps
-    saveOnBest = False      # Save the model only if it's the
-                            # best model at save time
-    overwrite = False       # True to overwrite the existing file when saving.
-                            # False to make a new file when saving.
-    
-    
-    # Model Loading Parameters
-    loadModel = False           # True to load in a pretrained model, False otherwise
-    loadDir = "../models"       # The directory to load the model from
-    paramLoadName = "modelParams.json"   # File to load the model paramters from
-    loadName = "model.pkl"  # Filename to load the model from
-    
-    # Loss Function Hyperparameters
-    FL_alpha = 4            # The focal loss alpha parameter
-    FL_gamma = 2            # The focal loss gamma paramter
-    reg_weight = 5.0        # Percent to weight regression loss over other loss
-    
-    
-    # COCO dataset parameters
-    dataDir = "../coco"     # The location of the COCO dataset
-    dataType = "val2017"    # The type of data being used in the COCO dataset
+    # The annotations file for the COCO dataset
     annFile = '{}/annotations/instances_{}.json'.format(dataDir,dataType)
-    categories = []         # The categories to load in (empty list to load all)
-    numToLoad = 10          # Max Number of data images to load in (use -1 for all)
     
     
     
@@ -97,7 +152,10 @@ def train():
     
     
     
-    ### Data Loading
+    
+    
+    
+    ### Data Loading ###
     
     # Initialize the COCO data
     coco=COCO(annFile)
@@ -108,7 +166,7 @@ def train():
     
     
     # If the number of categories is 0, load all categories
-    if numCats == 0:
+    if numCats == 0 or categories[0] == '':
         categories = [coco.cats[i]['name'] for i in coco.cats]
         numCats = len(categories)
     
@@ -153,7 +211,6 @@ def train():
     for img_d in img_data:
         # Load in the image
         img = io.imread(dataDir + os.sep + "images" + os.sep + dataType + os.sep + img_d["file_name"])
-        #img = io.imread(img_d['coco_url'])
         
         # Resize the image
         img = Image.fromarray(img) # Convert to PIL object
@@ -162,7 +219,6 @@ def train():
         new_h = round(img.height*prop)
         new_w = round(img.width*prop)
         img = img.resize((new_w, new_h))
-        #img.thumbnail((new_h, new_w), Image.ANTIALIAS) # Resize the image
         img = np.array(img)
         
         # Pad with zeros if needed
@@ -173,11 +229,11 @@ def train():
         imgs.append(img)
         props.append(prop)
         padding.append(pad)
-    imgs = torch.tensor(np.array(imgs), dtype=torch.float32, requires_grad=False, device=cpu)
+    imgs = torch.tensor(np.array(imgs), dtype=torch.int16,  requires_grad=False, device=cpu)
     
     # Correction so that channels are first, not last
     if imgs.shape[-1] == 3:
-        imgs = torch.reshape(imgs, (imgs.shape[0], 3, imgs.shape[1], imgs.shape[2]))
+        imgs = imgs.permute(0, 3, 1, 2)
     print("Images Loaded")
     
     
@@ -199,16 +255,12 @@ def train():
         pad = padding[i]
         
         # Get all annotations for this image
-        ann = ann_data[img_d["id"]]
+        ann = deepcopy(ann_data[img_d["id"]])
         ann_bbox = []
         ann_cls = []
         
         # The class for each pixel in the image
-        pix_cls = np.zeros((img.shape[1], img.shape[2]))
-        
-        # The object probability for each pixel in the image
-        # (1 if object in pixel, 0 otherwise)
-        pix_obj = np.zeros((img.shape[1], img.shape[2]))
+        pix_cls = np.zeros((img.shape[1], img.shape[2]), dtype=np.int16)
         
         # Iterate over every annotation and save it into a better form
         for a in ann:
@@ -247,19 +299,13 @@ def train():
                 for w in range(bbox[0], bbox[0]+bbox[2]):
                     for h in range(bbox[1], bbox[1]+bbox[3]):
                         pix_cls[:][w][h] = cls
-                        pix_obj[:][w][h] = 1
         
         # Encode the classes as a tensor
-        pix_cls = torch.tensor(pix_cls, dtype=int, device=cpu, requires_grad=False)
+        pix_cls = torch.tensor(pix_cls, device=cpu, requires_grad=False, dtype=torch.int16)
         
-        # One hot encode the pixel classes
-        #pix_cls = torch.nn.functional.one_hot(torch.tensor(pix_cls, dtype=int, device=cpu), len(seq_category_Ids.values()))
-        
-        # Encode the objectiveness as a tensor
-        pix_obj = torch.tensor(pix_obj, dtype=int, device=cpu, requires_grad=False)
-        
-        anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls, "pix_obj":pix_obj})
+        anns.append({"bbox":ann_bbox, "cls":ann_cls, "pix_cls":pix_cls})
     print("Annotations Loaded!\n")
+    
     
     
     
@@ -272,38 +318,24 @@ def train():
     # SimOta Paramters
     SimOTA_params = [q, r, extraCost, SimOta_lambda]
     
+    # Data augmentation paramters
+    dataAug_params = [dataDir + os.sep + "images" + os.sep + dataType + os.sep, img_data, ann_data, category_Ids]
+    
     # Create the model
-    #torch.autograd.set_detect_anomaly(True)
-    model = YOLOX(device, numEpochs, batchSize, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_consts, reg_weight, seq_category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params)
+    model = YOLOX(device, numEpochs, batchSize, warmupEpochs, alpha, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_weight, seq_category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params)
     
     # Load the model if requested
     if loadModel:
         model.loadModel(loadDir, loadName, paramLoadName)
     
     # Train the model
-    model.train_model(imgs, anns, saveParams)
+    model.train_model(imgs, anns, dataAug_params, augment_per, saveParams)
     
-    
-    #### Model Testing
-    print()
-    
-    # To get output, use torchvision.ops.nms
-    
-    # Make inferences using
-    # with torch.no_grad():
-    #    make_inference()
-    
-    
-    
-    ### Model Saving
-    
-    # Save model in pkl file
-    
-    # Save model parameters (like the layers sizes and such) to load
-    # in for inferring
+    return 0
 
 
 
 
 if __name__=='__main__':
+    # Usage: python train.py --dataDir=[dataDir] --dataType=[dataType] --numToLoad=[numToLoad]
     train()

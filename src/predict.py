@@ -24,10 +24,10 @@ from typing import Optional
 # Required
 @click.option("--dataDir", "dataDir", type=str, help="Directory to load data we want the model to make predictions on", required=True)
 @click.option("--loadDir", "loadDir", type=str, help="The directory to load the model from", required=True)
-@click.option("--paramLoadName", "paramLoadName", type=str, help="File to load the model paramters from", required=True)
+@click.option("--paramLoadName", "paramLoadName", type=str, help="File to load the model parameters from", required=True)
 @click.option("--loadName", "loadName", type=str, help="Filename to load the model from", required=True)
 
-# Other Paramters
+# Other Parameters
 @click.option("--device", "device", type=str, default="gpu", help="The device to train the model with (cpu or gpu)", required=False)
 @click.option("--batchSize", "batchSize", type=int, default=0, help="The size of each minibatch of data (use 0 to use a single batch)", required=False)
 
@@ -36,9 +36,9 @@ from typing import Optional
 @click.option("--score_thresh", "score_thresh", type=float, default=0.5, help="The score threshold to remove boxes in NMS. If the score is less than this value, remove it", required=False)
 @click.option("--IoU_thresh", "IoU_thresh", type=float, default=0.1, help="The IoU threshold to update scores in NMS. If the IoU is greater than this value, update it's score", required=False)
 
-# Focal Loss Function Hyperparamters
+# Focal Loss Function Hyperparameters
 @click.option("--FL_alpha", "FL_alpha", type=float, default=4.0, help="The focal loss alpha parameter", required=False)
-@click.option("--FL_gamma", "FL_gamma", type=float, default=2.0, help="The focal loss gamma paramter", required=False)
+@click.option("--FL_gamma", "FL_gamma", type=float, default=2.0, help="The focal loss gamma parameter", required=False)
 def predict(
     dataDir: str,
     loadDir: str,
@@ -66,8 +66,8 @@ def predict(
     FL_gamma = 2
     reg_weight = 5
     
-    # Trash paramters the model needs but will overwrite
-    # using the model paramters file
+    # Trash parameters the model needs but will overwrite
+    # using the model parameters file
     ImgDim = 256
     numCats = 3
     category_Ids = dict()
@@ -101,7 +101,7 @@ def predict(
     with open(os.path.join(loadDir, paramLoadName), "r", encoding='utf-8') as f:
         data = json.load(f)
         
-    # Store the loaded data as model paramters
+    # Store the loaded data as model parameters
     ImgDim = data['ImgDim']
     numCats = data['numCats']
     category_Ids = data['category_Ids']

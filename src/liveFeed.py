@@ -72,7 +72,7 @@ def liveFeed(
         if torch.cuda.is_available():
             device = torch.device('cuda:0')
         else:
-            print("GPU not available, defaulting to CPU\n")
+            print("GPU not available, defaulting to CPU. Please ignore this message if you do not wish to use a GPU\n")
             device = torch.device('cpu')
     else:
         device = torch.device('cpu')

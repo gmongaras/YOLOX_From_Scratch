@@ -57,11 +57,6 @@ def str_to_list(s):
 @click.option("--ImgDim", "ImgDim", type=int, default=256, help="Resize the images to a square pixel value (can be 1024, 512, or 256)", required=False)
 @click.option("--augment_per", "augment_per", type=float, default=0.75, help="Percent of extra augmented data to generate every epoch", required=False)
 
-# Bounding Box Filtering
-@click.option("--removal_threshold", "removal_threshold", type=float, default=0.5, help="The threshold of predictions to remove if the confidence in that prediction is below this value", required=False)
-@click.option("--score_thresh", "score_thresh", type=float, default=0.5, help="The score threshold to remove boxes in NMS. If the score is less than this value, remove it", required=False)
-@click.option("--IoU_thresh", "IoU_thresh", type=float, default=0.1, help="The IoU threshold to update scores in NMS. If the IoU is greater than this value, update it's score", required=False)
-
 # SimOTA Paramters
 @click.option("--q", "q", type=int, default=20, help="The number of GIoU values to pick when calculating the k values in SimOTA (k = The number of labels (supply) each gt has)", required=False)
 @click.option("--r", "r", type=int, default=5, help="The radius used to calculate the center prior in SimOTA", required=False)
@@ -105,10 +100,6 @@ def train(
     ImgDim: Optional[int],
     augment_per: Optional[float],
 
-    removal_threshold: Optional[float],
-    score_thresh: Optional[float],
-    IoU_thresh: Optional[float],
-
     q: Optional[int],
     r: Optional[int],
     extraCost: Optional[float],
@@ -133,6 +124,11 @@ def train(
     categories: Optional[List[str]],
     
     ):
+    
+    # Paramters not used by train that the model needs
+    removal_threshold = 0.5
+    score_thresh = 0.5
+    IoU_thresh = 0.1
     
     # The annotations file for the COCO dataset
     annFile = '{}/annotations/instances_{}.json'.format(dataDir,dataType)

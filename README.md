@@ -11,9 +11,11 @@
   - [Coco Bounding Box Data Format](#coco-bounding-box-data-format)
 - [Running The Model](#running-the-model)
   - [Training](#training)
+    - Training Parameters
   - [Predicting](#predicting)
+    - Prediction Parameters
   - [Live Feed](#live-feed)
-- Results
+    - Live Feed Parameters
 - Sources
 
 
@@ -206,11 +208,50 @@ To train the model using a pre-trained model, download  a [pretrained model](#pr
 Assuming you now have the data and an optional pre-trained model on your computer, use the following command from the root directory of this repository to begin training the model:
 
 ```
-cd src/
-python train.py
+python src/train.py --dataDir=[dataDir] --dataType=[dataType] --numToLoad=[numToLoad]
 ```
 
-More info coming in the future
+### Training Parameters:
+Note: Each parameter can be changed by adding `--[parameterName]` after `python src/train.py` where [parameterName] is replaced by the name of the parameter you wish to change.
+Note: Default values are in brackets
+
+<b>Required:</b>
+- dataDir - Location of the COCO dataset
+- dataType - The type of data being used in the COCO dataset (ex: val2017)
+- numToLoad - Max Number of data images to load in (use -1 for all)
+
+<b>Model Hyperparameters</b>
+- device - [gpu] The device to train the model with (cpu or gpu)
+- numEpochs - [300] The number of epochs to train the model
+- batchSize - [128] The size of each minibatch
+- warmupEpochs - [5] Number of epochs before using a lr scheduler
+- alpha - [0.01] Initial learning rate
+- weightDecay - [0.0005] Weight decay in SGD
+- momentum - [0.9] Momentum of SGD
+- ImgDim - [256] Resize the images to a square pixel value (can be 1024, 512, or 256)
+- augment_per - [0.75] Percent of extra augmented data to generate every epoch
+
+<b>SimOTA Parameters</b>
+- q - [20] The number of GIoU values to pick when calculating the k values in SimOTA (k = The number of labels (supply) each gt has)
+- r - [5] The radius used to calculate the center prior in SimOTA
+- extraCost - [100000.0] The extra cost used in the center prior computation in SimOTA
+- SimOta_lambda - [3.0] Balancing factor for the foreground loss in SimOTA
+
+<b>Model Save Parameters</b>
+- saveDir - [../models] The directory to save models to
+- saveName - [model] File to save the model to
+- paramSaveName - [modelParams] File to save the model parameters to
+- saveSteps - [10] Save the model every "saveSteps" steps
+- saveOnBest - [False] True to save the model only if it's the current best model at save time
+- overwrite - [False] True to overwrite the existing file when saving. False to make a new file when saving
+
+<b>Loss Function Hyperparameters</b>
+- FL_alpha - [4.0] The focal loss alpha parameter
+- FL_gamma - [2.0] The focal loss gamma parameter
+- reg_weight - [5.0] Percent to weight regression loss over other loss
+
+<b>Other Coco Dataset Parameters
+- categories - [""] The categories to load in (empty list to load all) (Ex: 'cat,dog,person')
 
 ## Predicting
 
@@ -221,10 +262,32 @@ Additionally, any images you wish the model to put bounding boxes around should 
 Assuming the pre-trained model was downloaded and is in the correct repository, use the following command from the root directory of this repository to begin making predictions with the model:
 
 ```
-cd src/
-python predict.py
+python predict.py --dataDir=[dataDir] --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
 ```
 
+### Prediction Parameters:
+Note: Each parameter can be changed by adding `--[parameterName]` after `python src/predict.py` where [parameterName] is replaced by the name of the parameter you wish to change.
+Note: Default values are in brackets
+  
+<b>Required</b>
+- dataDir - Directory to load data we want the model to make predictions on (use testData for default test images)
+- loadDir - The directory to load the model from
+- paramLoadName - File to load the model parameters from
+- loadName - Filename to load the model from
+
+<b>Other Parameters</b>
+- device - [gpu] The device to train the model with (cpu or gpu)
+- batchSize - [0] The size of each minibatch of data (use 0 to use a single batch)
+
+<b>Bounding Box Filtering</b>
+- removal_threshold - [0.5] The threshold of predictions to remove if the confidence in that prediction is below this value
+- score_thresh - [0.5] The score threshold to remove boxes in NMS. If the score is less than this value, remove it
+- IoU_thresh - [0.1] The IoU threshold to update scores in NMS. If the IoU is greater than this value, update it's score
+
+<b>Focal Loss Function Hyperparameters</b>
+FL_alpha - [4.0] The focal loss alpha parameter
+FL_gamma - [2.0] The focal loss gamma parameter
+  
 
 ## Live Feed
 
@@ -235,9 +298,30 @@ To use the live feed mode, download a [pretrained model](#pretrained-models).
 To run the live feed mode, use the following command from the root repository in the directory:
 
 ```
-cd src/
-python liveFeed.py
+python liveFeed.py --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
 ```
+  
+  
+### Live Feed Parameters:
+Note: Each parameter can be changed by adding `--[parameterName]` after `python src/liveFeed.py` where [parameterName] is replaced by the name of the parameter you wish to change.
+Note: Default values are in brackets
+  
+<b>Required</b>
+- loadDir - The directory to load the model from
+- paramLoadName - File to load the model parameters from
+- loadName - Filename to load the model from
+
+<b>Other Parameters</b>
+- device - [gpu] The device to train the model with (cpu or gpu)
+
+<b>Bounding Box Filtering</b>
+- removal_threshold - [0.5] The threshold of predictions to remove if the confidence in that prediction is below this value
+- score_thresh - [0.5] The score threshold to remove boxes in NMS. If the score is less than this value, remove it
+- IoU_thresh - [0.1] The IoU threshold to update scores in NMS. If the IoU is greater than this value, update it's score
+
+<b>Focal Loss Function Hyperparameters</b>
+FL_alpha - [4.0] The focal loss alpha parameter
+FL_gamma - [2.0] The focal loss gamma parameter
 
 
 To stop the live feed script, press `esc` or `ENTER`.

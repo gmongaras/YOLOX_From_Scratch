@@ -46,7 +46,7 @@ def str_to_list(s):
 @click.option("--dataType", "dataType", type=str, help="The type of data being used in the COCO dataset (ex: val2017)", required=True)
 @click.option("--numToLoad", "numToLoad", type=int, help="Max Number of data images to load in (use -1 for all)", required=True)
 
-# Hyperparamters
+# Hyperparameters
 @click.option("--device", "device", type=str, default="gpu", help="The device to train the model with (cpu or gpu)", required=False)
 @click.option("--numEpochs", "numEpochs", type=int, default=300, help="The number of epochs to train the model", required=False)
 @click.option("--batchSize", "batchSize", type=int, default=128, help="The size of each minibatch", required=False)
@@ -57,13 +57,13 @@ def str_to_list(s):
 @click.option("--ImgDim", "ImgDim", type=int, default=256, help="Resize the images to a square pixel value (can be 1024, 512, or 256)", required=False)
 @click.option("--augment_per", "augment_per", type=float, default=0.75, help="Percent of extra augmented data to generate every epoch", required=False)
 
-# SimOTA Paramters
+# SimOTA parameters
 @click.option("--q", "q", type=int, default=20, help="The number of GIoU values to pick when calculating the k values in SimOTA (k = The number of labels (supply) each gt has)", required=False)
 @click.option("--r", "r", type=int, default=5, help="The radius used to calculate the center prior in SimOTA", required=False)
 @click.option("--extraCost", "extraCost", type=float, default=100000.0, help="The extra cost used in the center prior computation in SimOTA", required=False)
 @click.option("--SimOta_lambda", "SimOta_lambda", type=float, default=3.0, help="Balancing factor for the foreground loss in SimOTA", required=False)
 
-# Model Save Paramters
+# Model Save parameters
 @click.option("--saveDir", "saveDir", type=str, default="../models", help="The directory to save models to", required=False)
 @click.option("--saveName", "saveName", type=str, default="model", help="File to save the model to", required=False)
 @click.option("--paramSaveName", "paramSaveName", type=str, default="modelParams", help="File to save the model parameters to", required=False)
@@ -71,18 +71,18 @@ def str_to_list(s):
 @click.option("--saveOnBest", "saveOnBest", type=bool, default=False, help="True to save the model only if it's the current best model at save time", required=False)
 @click.option("--overwrite", "overwrite", type=bool, default=False, help="True to overwrite the existing file when saving. False to make a new file when saving.", required=False)
 
-# Model Loading Paramters
+# Model Loading parameters
 @click.option("--loadModel", "loadModel", type=bool, default=False, help="True to load in a pretrained model, False otherwise", required=False)
 @click.option("--loadDir", "loadDir", type=str, default="../models", help="The directory to load the model from", required=False)
-@click.option("--paramLoadName", "paramLoadName", type=str, default="modelParams.json", help="File to load the model paramters from", required=False)
+@click.option("--paramLoadName", "paramLoadName", type=str, default="modelParams.json", help="File to load the model parameters from", required=False)
 @click.option("--loadName", "loadName", type=str, default="model.pkl", help="Filename to load the model from", required=False)
 
-# Loss Function Hyperparamters
+# Loss Function Hyperparameters
 @click.option("--FL_alpha", "FL_alpha", type=float, default=4.0, help="The focal loss alpha parameter", required=False)
-@click.option("--FL_gamma", "FL_gamma", type=float, default=2.0, help="The focal loss gamma paramter", required=False)
+@click.option("--FL_gamma", "FL_gamma", type=float, default=2.0, help="The focal loss gamma parameter", required=False)
 @click.option("--reg_weight", "reg_weight", type=float, default=5.0, help="Percent to weight regression loss over other loss", required=False)
 
-# Coco dataset paramters
+# Coco dataset parameters
 @click.option("--categories", "categories", type=str_to_list, default="", help="The categories to load in (empty list to load all) (Ex: 'cat,dog,person'", required=False)
 
 def train(
@@ -125,7 +125,7 @@ def train(
     
     ):
     
-    # Paramters not used by train that the model needs
+    # parameters not used by train that the model needs
     removal_threshold = 0.5
     score_thresh = 0.5
     IoU_thresh = 0.1
@@ -311,10 +311,10 @@ def train(
     # File saving parameters
     saveParams = [saveDir, paramSaveName, saveName, saveSteps, saveOnBest, overwrite]
     
-    # SimOta Paramters
+    # SimOta parameters
     SimOTA_params = [q, r, extraCost, SimOta_lambda]
     
-    # Data augmentation paramters
+    # Data augmentation parameters
     dataAug_params = [dataDir + os.sep + "images" + os.sep + dataType + os.sep, img_data, ann_data, category_Ids]
     
     # Create the model

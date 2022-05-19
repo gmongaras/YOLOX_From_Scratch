@@ -117,6 +117,7 @@ def liveFeed(
     
     # Iterate until ENTER or esc is pressed
     c = 0
+    print("Press ENTER or esc to end the script")
     while c != 13 and c != 27:
         
         # Get a webcam state

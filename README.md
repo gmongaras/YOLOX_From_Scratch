@@ -67,7 +67,7 @@ When reading over the YOLOX paper, I noticed it was missing a lot of content tha
 [What is YOLO and What Makes It Special?](https://gmongaras.medium.com/yolox-explanation-what-is-yolox-and-what-makes-it-special-c01f6a8a0830)<br>
 [How Does YOLOX Work?](https://gmongaras.medium.com/yolox-explanation-how-does-yolox-work-3e5c89f2bf78)<br>
 [SimOTA For Dynamic Label Assignment](https://gmongaras.medium.com/yolox-explanation-simota-for-dynamic-label-assignment-8fa5ae397f76)<br>
-Mosaic and Mixup For Data Augmentation<br>
+[Mosaic and Mixup For Data Augmentation](https://gmongaras.medium.com/yolox-explanation-mosaic-and-mixup-for-data-augmentation-3839465a3adf)<br>
 
 
 # Model Information

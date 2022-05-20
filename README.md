@@ -56,10 +56,10 @@ https://pytorch.org/
 
 The purpose of this project is to code the YOLOX algorithm from scratch in order to learn more about how it works and to put the algorithm in a more readable format for other people to better understand the algorithm. 
 
-The original paper can be found from the link below:
+The original paper can be found from the following link:
 https://arxiv.org/abs/2107.08430
 
-The original repo can be found using the link below:
+The original repo can be found using the following link:
 https://github.com/Megvii-BaseDetection/YOLOX
 
 When reading over the YOLOX paper, I noticed it was missing a lot of content that was assumed knowledge from other papers like YOLOv3, OTA, FCOS, and others. Since this algorithm does better than the famous YOLO algorithms but does so without anchors, it is important to understand how it works in order to improve bounding box algorithms in an anchor-free manner. Using this repo, I will attempt to explain how the algorithm works in some sort of article format and will put the links below as I write them:
@@ -250,7 +250,7 @@ Note: Default values are in brackets
 - FL_gamma - [2.0] The focal loss gamma parameter
 - reg_weight - [5.0] Percent to weight regression loss over other loss
 
-<b>Other Coco Dataset Parameters
+<b>Other Coco Dataset Parameters</b>
 - categories - [""] The categories to load in (empty list to load all) (Ex: 'cat,dog,person')
 
 ## Predicting

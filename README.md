@@ -245,6 +245,13 @@ Note: Default values are in brackets
 - saveOnBest - [False] True to save the model only if it's the current best model at save time
 - overwrite - [False] True to overwrite the existing file when saving. False to make a new file when saving
 
+<b>Model Loading Paramters</b>
+Used to load a pretrained model and start training at that checkpoint
+- loadModel - [False] True to load in a pretrained model, False otherwise
+- loadDir - [../models] The directory to load the model from
+- paramLoadName - [modelParams.json] File to load the model parameters from
+- loadName - [model.pkl] Filename to load the model from
+
 <b>Loss Function Hyperparameters</b>
 - FL_alpha - [4.0] The focal loss alpha parameter
 - FL_gamma - [2.0] The focal loss gamma parameter

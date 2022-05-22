@@ -1,7 +1,5 @@
 from Darknet53 import Darknet53
 from LossFunctions import LossFunctions
-from pycocotools.cocoeval import COCOeval
-import matplotlib.pyplot as plt
 
 import torch
 from torch import nn
@@ -9,7 +7,6 @@ import numpy as np
 import math
 import os
 import json
-import random
 from random import randint
 import skimage.io as io
 from copy import deepcopy
@@ -19,7 +16,6 @@ from SimOTA import SimOTA
 
 from dataAugmentation import Mosaic
 from dataAugmentation import mixup
-import matplotlib.patches as patches
 from PIL import Image
 
 

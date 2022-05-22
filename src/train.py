@@ -80,7 +80,7 @@ def str_to_list(s):
 # Loss Function Hyperparameters
 @click.option("--FL_alpha", "FL_alpha", type=float, default=4.0, help="The focal loss alpha parameter", required=False)
 @click.option("--FL_gamma", "FL_gamma", type=float, default=2.0, help="The focal loss gamma parameter", required=False)
-@click.option("--reg_weight", "reg_weight", type=float, default=5.0, help="Percent to weight regression loss over other loss", required=False)
+@click.option("--reg_weight", "reg_weight", type=float, default=5.0, help="Constant to weigh the regression loss over other loss", required=False)
 
 # Coco dataset parameters
 @click.option("--categories", "categories", type=str_to_list, default="", help="The categories to load in (empty list to load all) (Ex: 'cat,dog,person')", required=False)

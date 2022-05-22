@@ -269,7 +269,7 @@ Additionally, any images you wish the model to put bounding boxes around should 
 Assuming the pre-trained model was downloaded and is in the correct repository, use the following command from the root directory of this repository to begin making predictions with the model:
 
 ```
-python predict.py --dataDir=[dataDir] --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
+python src/predict.py --dataDir=[dataDir] --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
 ```
 
 ### Prediction Parameters:
@@ -305,7 +305,7 @@ To use the live feed mode, download a [pretrained model](#pretrained-models).
 To run the live feed mode, use the following command from the root repository in the directory:
 
 ```
-python liveFeed.py --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
+python src/liveFeed.py --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
 ```
   
   

@@ -717,6 +717,12 @@ class YOLOX(nn.Module):
             # Decode all regression outputs and store it as a numpy array
             for b in range(0, len(reg_b)):
                 reg_b[b] = self.regDecode(reg_b[b], b).cpu().numpy()
+                
+                # Make sure the outputs aren't larger than the input image
+                reg_b[b][:, :, :2] = np.clip(reg_b[b][:, :, :2], 0, X.shape[-1])
+                reg_b[b][:, :, 2:] = np.clip(reg_b[b][:, :, 2:], 0, np.inf)
+                reg_b[b][:, :, 2] = np.where(reg_b[b][:, :, 0]+reg_b[b][:, :, 2] > X.shape[-1], X.shape[-1]-reg_b[b][:, :, 0], reg_b[b][:, :, 2])
+                reg_b[b][:, :, 3] = np.where(reg_b[b][:, :, 1]+reg_b[b][:, :, 3] > X.shape[-1], X.shape[-1]-reg_b[b][:, :, 1], reg_b[b][:, :, 3])
             
             # Decode all class and objectiveness predictions by sending them
             # through a sigmoid function. We do this since the loss

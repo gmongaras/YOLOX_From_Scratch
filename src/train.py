@@ -64,7 +64,7 @@ def str_to_list(s):
 @click.option("--SimOta_lambda", "SimOta_lambda", type=float, default=3.0, help="Balancing factor for the foreground loss in SimOTA", required=False)
 
 # Model Save parameters
-@click.option("--saveDir", "saveDir", type=str, default="../models", help="The directory to save models to", required=False)
+@click.option("--saveDir", "saveDir", type=str, default="./models", help="The directory to save models to", required=False)
 @click.option("--saveName", "saveName", type=str, default="model", help="File to save the model to", required=False)
 @click.option("--paramSaveName", "paramSaveName", type=str, default="modelParams", help="File to save the model parameters to", required=False)
 @click.option("--saveSteps", "saveSteps", type=int, default=10, help="Save the model every `saveSteps` steps", required=False)
@@ -73,7 +73,7 @@ def str_to_list(s):
 
 # Model Loading parameters
 @click.option("--loadModel", "loadModel", type=bool, default=False, help="True to load in a pretrained model, False otherwise", required=False)
-@click.option("--loadDir", "loadDir", type=str, default="../models", help="The directory to load the model from", required=False)
+@click.option("--loadDir", "loadDir", type=str, default="./models", help="The directory to load the model from", required=False)
 @click.option("--paramLoadName", "paramLoadName", type=str, default="modelParams.json", help="File to load the model parameters from", required=False)
 @click.option("--loadName", "loadName", type=str, default="model.pkl", help="Filename to load the model from", required=False)
 

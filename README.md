@@ -238,7 +238,7 @@ Note: Default values are in brackets
 - SimOta_lambda - [3.0] Balancing factor for the foreground loss in SimOTA
 
 <b>Model Save Parameters</b>
-- saveDir - [../models] The directory to save models to
+- saveDir - [./models] The directory to save models to
 - saveName - [model] File to save the model to
 - paramSaveName - [modelParams] File to save the model parameters to
 - saveSteps - [10] Save the model every "saveSteps" steps
@@ -248,7 +248,7 @@ Note: Default values are in brackets
 <b>Model Loading Paramters</b>
 Used to load a pretrained model and start training at that checkpoint
 - loadModel - [False] True to load in a pretrained model, False otherwise
-- loadDir - [../models] The directory to load the model from
+- loadDir - [./models] The directory to load the model from
 - paramLoadName - [modelParams.json] File to load the model parameters from
 - loadName - [model.pkl] Filename to load the model from
 

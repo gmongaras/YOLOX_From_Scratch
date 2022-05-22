@@ -11,9 +11,9 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "justMyCode": true,
-            //"args": ["--dataDir=../coco", "--dataType=val2017", "--numToLoad=10", "--loadModel=True", "--paramLoadName=modelParams - t.json", "--loadName=model - t.pkl"], // train
-            //"args": ["--dataDir=../testData", "--loadDir=../models", "--paramLoadName=modelParams - test.json", "--loadName=model - test.pkl", "--removal_threshold=0.5", "--score_thresh=0.5"], // pred
-            //"args": ["--loadDir=../models", "--paramLoadName=modelParams - test.json", "--loadName=model - test.pkl"], // liveFeed
+            //"args": ["--dataDir=./coco", "--dataType=val2017", "--numToLoad=10", "--loadModel=True", "--paramLoadName=modelParams - t.json", "--loadName=model - t.pkl"], // train
+            //"args": ["--dataDir=./testData", "--loadDir=./models", "--paramLoadName=modelParams - 300.json", "--loadName=model - 300.pkl", "--removal_threshold=0.5", "--score_thresh=0.5"], // pred
+            //"args": ["--loadDir=./models", "--paramLoadName=modelParams - test.json", "--loadName=model - test.pkl"], // liveFeed
         }
     ]
 }

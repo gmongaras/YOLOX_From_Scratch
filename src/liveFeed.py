@@ -24,7 +24,7 @@ from typing import Optional
 @click.option("--loadName", "loadName", type=str, help="Filename to load the model from", required=True)
 
 # Other Parameters
-@click.option("--device", "device", type=str, default="gpu", help="The device to train the model with (cpu or gpu)", required=False)
+@click.option("--device", "device", type=str, default="cpu", help="The device to train the model with (cpu or gpu)", required=False)
 
 # Bounding Box Filtering
 @click.option("--removal_threshold", "removal_threshold", type=float, default=0.5, help="The threshold of predictions to remove if the confidence in that prediction is below this value", required=False)
@@ -70,11 +70,14 @@ def liveFeed(
     # Putting device on GPU or CPU
     if device.lower() == "gpu":
         if torch.cuda.is_available():
+            dev = "gpu"
             device = torch.device('cuda:0')
         else:
+            dev = "cpu"
             print("GPU not available, defaulting to CPU. Please ignore this message if you do not wish to use a GPU\n")
             device = torch.device('cpu')
     else:
+        dev = "cpu"
         device = torch.device('cpu')
     cpu = torch.device('cpu')
     
@@ -99,7 +102,7 @@ def liveFeed(
     with torch.no_grad():
         
         # Create the model
-        model = YOLOX(device, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_weight, category_Ids, removal_threshold, score_thresh, IoU_thresh)
+        model = YOLOX(dev, numEpochs, 1, warmupEpochs, lr_init, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_weight, category_Ids, removal_threshold, score_thresh, IoU_thresh)
         
         # Load the model from a saved state
         model.loadModel(loadDir, loadName, paramLoadName)

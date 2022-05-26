@@ -89,13 +89,16 @@ class LossFunctions():
         if pred.shape[0] == 0 or GT.shape[0] == 0:
             return 0
         
+        # Get the device
+        device = pred.device
+        
         # Convert the boxes to the correct form:
         #   1: x_1 - The lower/left-most x value
         #   2: y_1 - The lower/upper-most y value
         #   3: x_2 - The higher/right-most x value
         #   4: y_2 - The higher/bottom-most y value
-        B_p_stack = torch.stack([torch.stack([X[0], X[1], X[0]+X[2], X[1]+X[3]]) for X in pred]).float()
-        B_g_stack = torch.stack([torch.stack([Y[0], Y[1], Y[0]+Y[2], Y[1]+Y[3]]) for Y in GT]).float()
+        B_p_stack = torch.stack([torch.stack([X[0], X[1], X[0]+X[2], X[1]+X[3]]) for X in pred]).float().to(device)
+        B_g_stack = torch.stack([torch.stack([Y[0], Y[1], Y[0]+Y[2], Y[1]+Y[3]]) for Y in GT]).float().to(device)
         
         # 1: Store the predictions in separate variables
         # and ensure x_2 > x_1 and y_2 > y_1
@@ -129,7 +132,7 @@ class LossFunctions():
         
         # The intersection is 0 if the area is 0 or below or
         # the positive area of the intersection if it's greater than 0
-        I = torch.where(torch.logical_and(x_2_I > x_1_I, y_2_I > y_1_I), (x_2_I - x_1_I) * (y_2_I - y_1_I), torch.tensor(0.0))
+        I = torch.where(torch.logical_and(x_2_I > x_1_I, y_2_I > y_1_I), (x_2_I - x_1_I) * (y_2_I - y_1_I), torch.tensor(0.0, device=device))
         nn.functional.relu(I, inplace=True)
         
         # 5: Find coordinate of smallest enclosing box B_c
@@ -145,6 +148,7 @@ class LossFunctions():
         U = A_p + A_g - I
         IoU = I/U
         IoU[U == 0] = 0
+        IoU[torch.isnan(IoU)] = 0
         
         # 8: Calculate the GIoU
         GIoU = IoU - ((A_c - U) / A_c)
@@ -203,6 +207,7 @@ class LossFunctions():
         # Compute the intersection over union
         IoU = intersectionArea/union
         IoU[union == 0] = 0
+        IoU[torch.isnan(IoU)] = 0
         
         # Get the IoU loss
         IoU_loss = 1-IoU

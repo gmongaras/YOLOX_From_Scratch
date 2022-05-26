@@ -47,7 +47,7 @@ def str_to_list(s):
 @click.option("--numToLoad", "numToLoad", type=int, help="Max Number of data images to load in (use -1 for all)", required=True)
 
 # Hyperparameters
-@click.option("--device", "device", type=str, default="gpu", help="The device to train the model with (cpu or gpu)", required=False)
+@click.option("--device", "device", type=str, default="cpu", help="The device to train the model with (`cpu`, `fullGPU` for complete GPU support, `partGPU` to only run the model on the GPU)", required=False)
 @click.option("--numEpochs", "numEpochs", type=int, default=300, help="The number of epochs to train the model", required=False)
 @click.option("--batchSize", "batchSize", type=int, default=128, help="The size of each minibatch", required=False)
 @click.option("--warmupEpochs", "warmupEpochs", type=int, default=5, help="Number of epochs before using a lr scheduler", required=False)
@@ -138,11 +138,14 @@ def train(
     # Putting device on GPU or CPU
     if device.lower() == "gpu":
         if torch.cuda.is_available():
+            dev = "gpu"
             device = torch.device('cuda:0')
         else:
+            dev = "cpu"
             print("GPU not available, defaulting to CPU. Please ignore this message if you do not wish to use a GPU\n")
             device = torch.device('cpu')
     else:
+        dev = "cpu"
         device = torch.device('cpu')
     cpu = torch.device('cpu')
     
@@ -225,7 +228,7 @@ def train(
         imgs.append(img)
         props.append(prop)
         padding.append(pad)
-    imgs = torch.tensor(np.array(imgs), dtype=torch.int16,  requires_grad=False, device=cpu)
+    imgs = torch.tensor(np.array(imgs), dtype=torch.int16,  requires_grad=False, device=device)
     
     # Correction so that channels are first, not last
     if imgs.shape[-1] == 3:
@@ -318,7 +321,7 @@ def train(
     dataAug_params = [dataDir + os.sep + "images" + os.sep + dataType + os.sep, img_data, ann_data, category_Ids]
     
     # Create the model
-    model = YOLOX(device, numEpochs, batchSize, warmupEpochs, alpha, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_weight, seq_category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params)
+    model = YOLOX(dev, numEpochs, batchSize, warmupEpochs, alpha, weightDecay, momentum, ImgDim, numCats, FL_alpha, FL_gamma, reg_weight, seq_category_Ids, removal_threshold, score_thresh, IoU_thresh, SimOTA_params)
     
     # Load the model if requested
     if loadModel:

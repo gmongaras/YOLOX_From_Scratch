@@ -1,0 +1,19 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            //"args": ["--device=cpu", "--dataDir=./coco", "--dataType=val2017", "--numToLoad=2", "--loadModel=False", "--paramLoadName=modelParams - t.json", "--loadName=model - t.pkl"], // train
+            //"args": ["--device=cpu", "--dataDir=./testData", "--loadDir=./models", "--paramLoadName=modelParams - 10.json", "--loadName=model - 10.pkl", "--removal_threshold=0.5", "--score_thresh=0.5"], // pred
+            //"args": ["--device=cpu", "--loadDir=./models", "--paramLoadName=modelParams - 10.json", "--loadName=model - 10.pkl"], // liveFeed
+        }
+    ]
+}

@@ -221,7 +221,10 @@ Note: Default values are in brackets
 - numToLoad - Max Number of data images to load in (use -1 for all)
 
 <b>Model Hyperparameters</b>
-- device - [gpu] The device to train the model with (cpu or gpu)
+- device - [cpu] The device to train the model with 
+  - `cpu` to put everything on the cpu
+  - `partGPU` to only put the model on the gpu
+  - `fullGPU` to put everything on the gpu
 - numEpochs - [300] The number of epochs to train the model
 - batchSize - [128] The size of each minibatch
 - warmupEpochs - [5] Number of epochs before using a lr scheduler
@@ -283,7 +286,7 @@ Note: Default values are in brackets
 - loadName - Filename to load the model from
 
 <b>Other Parameters</b>
-- device - [gpu] The device to train the model with (cpu or gpu)
+- device - [cpu] The device to train the model with (cpu or gpu)
 - batchSize - [0] The size of each minibatch of data (use 0 to use a single batch)
 
 <b>Bounding Box Filtering</b>
@@ -319,7 +322,7 @@ Note: Default values are in brackets
 - loadName - Filename to load the model from
 
 <b>Other Parameters</b>
-- device - [gpu] The device to train the model with (cpu or gpu)
+- device - [cpu] The device to train the model with (cpu or gpu)
 
 <b>Bounding Box Filtering</b>
 - removal_threshold - [0.5] The threshold of predictions to remove if the confidence in that prediction is below this value

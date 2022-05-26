@@ -137,6 +137,7 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
         
         # Those with an IoU of 0 need to be transformed to 0
         IoU[union == 0] = 0
+        IoU[np.isnan(IoU)] = 0
         
         # Get the q top IoU values (the top q predictions)
         # and sum them up to get the k for this gt
@@ -237,8 +238,8 @@ def SimOTA(G_reg, G_cls, A, P_cls, P_reg, q, r, extraCost, Lambda, LossFuncts):
         
         # If any of the costs are higher than the extra cost
         # of the background, remove it
-        idx_rem = np.where(cost_gt[idx] > extraCost)
-        idx = np.delete(idx, idx_rem)
+        #idx_rem = np.where(cost_gt[idx] > extraCost)
+        #idx = np.delete(idx, idx_rem)
         
         # Store the positive indices
         pos_idx.append(idx)

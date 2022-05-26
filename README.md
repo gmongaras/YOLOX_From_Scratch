@@ -258,6 +258,7 @@ Used to load a pretrained model and start training at that checkpoint
 <b>Loss Function Hyperparameters</b>
 - FL_alpha - [4.0] The focal loss alpha parameter
 - FL_gamma - [2.0] The focal loss gamma parameter
+- reg_weight - [5.0] Constant to weigh the regression loss over other loss
 
 <b>Other Coco Dataset Parameters</b>
 - categories - [""] The categories to load in (empty list to load all) (Ex: 'cat,dog,person')

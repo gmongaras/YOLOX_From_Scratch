@@ -56,10 +56,10 @@ https://pytorch.org/
 
 The purpose of this project is to code the YOLOX algorithm from scratch in order to learn more about how it works and to put the algorithm in a more readable format for other people to better understand the algorithm. 
 
-The original paper can be found from the following link:
+The original paper can be found from the link below:
 https://arxiv.org/abs/2107.08430
 
-The original repo can be found using the following link:
+The original repo can be found using the link below:
 https://github.com/Megvii-BaseDetection/YOLOX
 
 When reading over the YOLOX paper, I noticed it was missing a lot of content that was assumed knowledge from other papers like YOLOv3, OTA, FCOS, and others. Since this algorithm does better than the famous YOLO algorithms but does so without anchors, it is important to understand how it works in order to improve bounding box algorithms in an anchor-free manner. Using this repo, I will attempt to explain how the algorithm works in some sort of article format and will put the links below as I write them:
@@ -156,7 +156,7 @@ To test and train this particular model, I used the Coco dataset. The Coco datas
 In particular, I used the 2017 val and 2017 train data to train/test this model. The data can be found at the following link: https://cocodataset.org/#download
 
 Direct download links can be found below:
-- Note: The data takes up about 20 Gb of memory.
+- Note: The data takes up about 20 Gb of space.
 
 1. Uncompress the following and place all images in the `./coco/images/train2017/` directory:
 http://images.cocodataset.org/zips/test2017.zip
@@ -258,7 +258,6 @@ Used to load a pretrained model and start training at that checkpoint
 <b>Loss Function Hyperparameters</b>
 - FL_alpha - [4.0] The focal loss alpha parameter
 - FL_gamma - [2.0] The focal loss gamma parameter
-- reg_weight - [5.0] Percent to weight regression loss over other loss
 
 <b>Other Coco Dataset Parameters</b>
 - categories - [""] The categories to load in (empty list to load all) (Ex: 'cat,dog,person')
@@ -272,7 +271,7 @@ Additionally, any images you wish the model to put bounding boxes around should 
 Assuming the pre-trained model was downloaded and is in the correct repository, use the following command from the root directory of this repository to begin making predictions with the model:
 
 ```
-python src/predict.py --dataDir=[dataDir] --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
+python predict.py --dataDir=[dataDir] --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
 ```
 
 ### Prediction Parameters:
@@ -308,7 +307,7 @@ To use the live feed mode, download a [pretrained model](#pretrained-models).
 To run the live feed mode, use the following command from the root repository in the directory:
 
 ```
-python src/liveFeed.py --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
+python liveFeed.py --loadDir=[loadDir] --paramLoadName=[paramLoadName] --loadName=[loadName]
 ```
   
   

@@ -174,16 +174,20 @@ class YOLOX(nn.Module):
                 # on the original image
                 decoded.append(regs[img, pred, 0:2] + FPNPos_flat[pred])
                 
-                # First exponentiate the w and h so that they are not negative
-                temp = torch.exp(self.exp_params[p]*regs[img, pred, 2:])
+                # Begin moving the regression predictions by moving
+                # each prediction by the exponent constant
+                moved_preds = self.exp_params[p]*regs[img, pred, 2:]
                 
                 # Don't allow the exponentiated values above half
                 # the image size to avoid the values being
                 # blown up and causing nans
-                temp = torch.clamp(temp, 0, self.ImgDim//2)
+                moved_preds = torch.clamp(moved_preds, 0, np.log(self.ImgDim//2))
+                
+                # Now exponentiate the w and h so that they are not negative
+                moved_preds = torch.exp(moved_preds)
                 
                 # Move the w and h to their proper location
-                decoded.append(temp * self.strides[p])
+                decoded.append(moved_preds * self.strides[p])
                 
                 # Save this prediction
                 img_preds.append(torch.cat(decoded))
@@ -423,7 +427,7 @@ class YOLOX(nn.Module):
                                 reg_labels[img][pos] = 1
                                 
                                 # Assign the bounding box
-                                reg_targs[img][pos] = torch.tensor(y_b[img]['bbox'][gt_num], device=self.device)
+                                reg_targs[img][pos] = torch.tensor(y_b[img]['bbox'][gt_num], device=self.device, requires_grad=False)
                                 
                                 # Assign the class
                                 cls_targs[img][pos] = y_b[img]['cls'][gt_num]
@@ -566,6 +570,21 @@ class YOLOX(nn.Module):
             print("Obj:")
             print(f"Prediction:\n{1/(1+np.exp(-obj_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()))}")
             print("\n")
+            
+            a = open("file.txt", "a")
+            a.write(f"Step #{epoch}      Total Batch Loss: {batchLoss}\n")
+            a.write("Reg:\n")
+            a.write(f"Prediction:\n{reg_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}\n")
+            a.write(f"Ground Truth:\n{reg_targs[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}\n")
+            a.write("\n")
+            a.write("Cls:\n")
+            a.write(f"Prediction: {torch.argmax(torch.sigmoid(cls_p[idx])[reg_labels[idx] == 1][:2], dim=1).cpu().detach().numpy()}\n")
+            a.write(f"Ground Truth: {cls_targs[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}\n")
+            a.write("\n")
+            a.write("Obj:\n")
+            a.write(f"Prediction:\n{1/(1+np.exp(-obj_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()))}\n")
+            a.write("\n\n")
+            a.close()
             
             # Step the learning rate scheduler after the warmup steps
             if epoch > self.warmupEpochs:

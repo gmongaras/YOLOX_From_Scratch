@@ -75,9 +75,9 @@ def predict(
     
     
     # Putting device on GPU or CPU
-    if device.lower() == "gpu":
+    if device.lower() == "fullgpu" or device.lower == "partgpu":
         if torch.cuda.is_available():
-            dev = "gpu"
+            dev = device.lower()
             device = torch.device('cuda:0')
         else:
             dev = "cpu"

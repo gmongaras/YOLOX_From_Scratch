@@ -74,7 +74,7 @@ class YOLOX(nn.Module):
         self.SimOTA_params = SimOTA_params
 
         # Get the device to put tensors on
-        if self.device_str == "gpu":
+        if self.device_str == "fullgpu":
             self.device = gpu
         else:
             self.device = cpu

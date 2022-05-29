@@ -74,7 +74,7 @@ class YOLOX(nn.Module):
         self.SimOTA_params = SimOTA_params
 
         # Get the device to put tensors on
-        if self.device_str == "fullgpu":
+        if self.device_str == "fullgpu" or self.device_str == "gpu":
             self.device = gpu
         else:
             self.device = cpu
@@ -570,21 +570,6 @@ class YOLOX(nn.Module):
             print("Obj:")
             print(f"Prediction:\n{1/(1+np.exp(-obj_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()))}")
             print("\n")
-            
-            a = open("file.txt", "a")
-            a.write(f"Step #{epoch}      Total Batch Loss: {batchLoss}\n")
-            a.write("Reg:\n")
-            a.write(f"Prediction:\n{reg_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}\n")
-            a.write(f"Ground Truth:\n{reg_targs[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}\n")
-            a.write("\n")
-            a.write("Cls:\n")
-            a.write(f"Prediction: {torch.argmax(torch.sigmoid(cls_p[idx])[reg_labels[idx] == 1][:2], dim=1).cpu().detach().numpy()}\n")
-            a.write(f"Ground Truth: {cls_targs[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}\n")
-            a.write("\n")
-            a.write("Obj:\n")
-            a.write(f"Prediction:\n{1/(1+np.exp(-obj_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()))}\n")
-            a.write("\n\n")
-            a.close()
             
             # Step the learning rate scheduler after the warmup steps
             if epoch > self.warmupEpochs:

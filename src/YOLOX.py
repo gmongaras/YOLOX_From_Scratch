@@ -355,9 +355,10 @@ class YOLOX(nn.Module):
                 # If partial GPU support is used, take the data off the GPU
                 # and put it on the CPU
                 if self.device_str == "partgpu":
-                    cls = cls.to(cpu)
-                    reg = reg.to(cpu)
-                    iou = iou.to(cpu)
+                    for i in range(0, 3):
+                        cls[i] = cls[i].to(cpu)
+                        reg[i] = reg[i].to(cpu)
+                        iou[i] = iou[i].to(cpu)
                 
                 # Cumulate the loss across the three predictions
                 totalLoss = 0

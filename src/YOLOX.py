@@ -109,7 +109,10 @@ class YOLOX(nn.Module):
         }
         
         # The darknet backbone and output head
-        self.darknet = Darknet53(self.device, numCats+1)
+        if self.device_str == "partgpu":
+            self.darknet = Darknet53(gpu, numCats+1)
+        else:
+            self.darknet = Darknet53(self.device, numCats+1)
         
         # The loss functions
         self.losses = LossFunctions(FL_gamma, FL_alpha)
@@ -343,7 +346,7 @@ class YOLOX(nn.Module):
 
                 # If partial GPU support is used, put the input data
                 # on the GPU before going through the model
-                if self.device == "partgpu":
+                if self.device_str == "partgpu":
                     X_b = X_b.to(gpu)
                 
                 # Get a prediction of the bounding boxes on the input image
@@ -351,7 +354,7 @@ class YOLOX(nn.Module):
 
                 # If partial GPU support is used, take the data off the GPU
                 # and put it on the CPU
-                if self.device == "partgpu":
+                if self.device_str == "partgpu":
                     cls = cls.to(cpu)
                     reg = reg.to(cpu)
                     iou = iou.to(cpu)

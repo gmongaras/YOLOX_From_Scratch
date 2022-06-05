@@ -105,8 +105,10 @@ class YOLOX(nn.Module):
             "ImgDim": self.ImgDim,
             "numCats": self.numCats,
             "strides": self.strides,
-            "category_Ids": self.category_Ids
+            "category_Ids": self.category_Ids,
+            "epoch": 1
         }
+        self.epoch = 1
         
         # The darknet backbone and output head
         if self.device_str == "partgpu":
@@ -236,7 +238,7 @@ class YOLOX(nn.Module):
         origShape = X.shape[0]
         
         # Update the models `numEpochs` number of times
-        for epoch in range(1, self.numEpochs+1):
+        for self.epoch in range(self.epoch, self.numEpochs+1):
             
             # If X is not the original shape, then remove the
             # previously generated agumented data
@@ -322,9 +324,10 @@ class YOLOX(nn.Module):
 
             
             # Store the images and annotations
-            stk = torch.stack(new_imgs).to(self.device)
-            X = torch.cat((X, stk)).to(self.device)
-            y += new_anns
+            if len(new_imgs) != 0:
+                stk = torch.stack(new_imgs).to(self.device)
+                X = torch.cat((X, stk)).to(self.device)
+                y += new_anns
             
             
             # Get a randomized set of indices
@@ -561,7 +564,7 @@ class YOLOX(nn.Module):
             
             
             # Display some predictions
-            print(f"Step #{epoch}      Total Batch Loss: {batchLoss}")
+            print(f"Step #{self.epoch}      Total Batch Loss: {batchLoss}")
             print("Reg:")
             print(f"Prediction:\n{reg_p[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}")
             print(f"Ground Truth:\n{reg_targs[idx][reg_labels[idx] == 1][:2].cpu().detach().numpy()}")
@@ -576,19 +579,19 @@ class YOLOX(nn.Module):
             print("\n")
             
             # Step the learning rate scheduler after the warmup steps
-            if epoch > self.warmupEpochs:
+            if self.epoch > self.warmupEpochs:
                 self.scheduler.step()
             
             # Save the model if the model is in the proper state
             if saveSteps != 0:
-                if epoch % saveSteps == 0:
+                if self.epoch % saveSteps == 0:
                     if saveOnBest == True:
                         if batchLoss < bestLoss:
                             bestLoss = batchLoss
-                            self.saveModel(saveDir, paramSaveName, saveName, overwrite, epoch)
+                            self.saveModel(saveDir, paramSaveName, saveName, overwrite)
                 
                     else:
-                        self.saveModel(saveDir, paramSaveName, saveName, overwrite, epoch)
+                        self.saveModel(saveDir, paramSaveName, saveName, overwrite)
         
         return 0
         
@@ -603,8 +606,7 @@ class YOLOX(nn.Module):
     #   saveName - File to save the model to
     #   overwrite - True to overwrite the file when saving.
     #               False to make a new file when saving
-    #   epoch (optional) - The current epoch the model is on when training
-    def saveModel(self, saveDir, paramSaveName, saveName, overwrite, epoch=0):        
+    def saveModel(self, saveDir, paramSaveName, saveName, overwrite):        
         # Ensure the directory exists 
         if not os.path.isdir(saveDir):
             os.mkdir(saveDir)
@@ -612,8 +614,8 @@ class YOLOX(nn.Module):
         # If overwrite is False, create the new filename using the
         # current epoch by appending the epoch to the file name
         if not overwrite:
-            modelSaveName = f"{saveName} - {epoch}"
-            paramSaveName = f"{paramSaveName} - {epoch}"
+            modelSaveName = f"{saveName} - {self.epoch}"
+            paramSaveName = f"{paramSaveName} - {self.epoch}"
             
         # Add .pkl to the end of the model save name
         modelSaveName = f"{modelSaveName}.pkl"
@@ -625,6 +627,7 @@ class YOLOX(nn.Module):
         torch.save(self.state_dict(), os.path.join(saveDir, modelSaveName))
         
         # Save the paramters
+        self.JSON_Save["epoch"] = self.epoch+1
         with open(os.path.join(saveDir, paramSaveName), "w", encoding='utf-8') as f:
             json.dump(self.JSON_Save, f, ensure_ascii=False)
     
@@ -662,6 +665,7 @@ class YOLOX(nn.Module):
         self.numCats = data['numCats']
         self.strides = data['strides']
         self.category_Ids = data["category_Ids"]
+        self.epoch = data["epoch"]
         self.JSON_Save = data
         self.FPNShapes = [self.ImgDim//self.strides[0], self.ImgDim//self.strides[1], self.ImgDim//self.strides[2]]
         self.FPNPos = [torch.tensor([[(self.strides[i]/2 + k * self.strides[i], self.strides[i]/2 + j * self.strides[i]) for k in range(0, self.FPNShapes[i])] for j in range(0, self.FPNShapes[i])], device=self.device, dtype=torch.long) for i in range(0, len(self.strides))]

@@ -81,7 +81,9 @@ def soft_nonmaxSupression(B, S, C, score_thresh, IoU_thresh, IoU_function):
             idxs = np.argwhere(IoU > IoU_thresh)
             if s.shape[-1] == 1 and len(s.shape) > 1:
                 s = s.squeeze(-1)
-            s[idxs] = s[idxs]*np.exp(-((IoU[idxs])**2)/mean_scores)
+            #s[idxs] = s[idxs]*np.exp(-((IoU[idxs])**2)/mean_scores)
+            s = s*np.exp(-((IoU)**2)/mean_scores)
+            #s[idxs] = s[idxs]*(1-IoU[idxs])
             
             # Save the idx of the box to remove if the new score 
             # is less than the threshold

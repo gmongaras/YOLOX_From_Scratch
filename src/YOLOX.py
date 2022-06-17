@@ -654,7 +654,7 @@ class YOLOX(nn.Module):
         assert os.path.isfile(paramFileName), f"Load file {paramFileName} does not exist."
         
         # Load in the model file if it exists
-        self.load_state_dict(torch.load(modelFileName))
+        self.load_state_dict(torch.load(modelFileName, map_location=self.device))
         
         # Load in the parameters
         with open(paramFileName, "r", encoding='utf-8') as f:

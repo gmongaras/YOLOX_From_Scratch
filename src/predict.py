@@ -33,8 +33,8 @@ from typing import Optional
 
 # Bounding Box Filtering
 @click.option("--removal_threshold", "removal_threshold", type=float, default=0.5, help="The threshold of predictions to remove if the confidence in that prediction is below this value", required=False)
-@click.option("--score_thresh", "score_thresh", type=float, default=0.5, help="The score threshold to remove boxes in NMS. If the score is less than this value, remove it", required=False)
-@click.option("--IoU_thresh", "IoU_thresh", type=float, default=0.1, help="The IoU threshold to update scores in NMS. If the IoU is greater than this value, update it's score", required=False)
+@click.option("--score_thresh", "score_thresh", type=float, default=0.7, help="The score threshold to remove boxes in NMS. If the score is less than this value, remove it", required=False)
+@click.option("--IoU_thresh", "IoU_thresh", type=float, default=0.0, help="The IoU threshold to update scores in NMS. If the IoU is greater than this value, update it's score", required=False)
 
 # Focal Loss Function Hyperparameters
 @click.option("--FL_alpha", "FL_alpha", type=float, default=4.0, help="The focal loss alpha parameter", required=False)
